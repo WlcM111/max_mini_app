@@ -59,6 +59,7 @@ ESLint 9 + typescript-eslint.
 | Реестр: фильтры, поиск, подгрузка | `DocumentsPage` + `useInfiniteQuery` | T-INT-08, T-FE-PAGE |
 | Добавление документа | `DocumentFormPage` (клиентский UUID) | T-INT-06, T-FE-DUP |
 | Карточка: статус, напоминание, шаги продления | `DocumentCardPage` | T-INT-06, T-INT-07 |
+| Чек-лист подготовки к продлению (FR-20) | `DocumentCardPage`, `renewalChecklist.ts` | unit-тесты чек-листа, T-FE-PAGE |
 | Изменение с проверкой версии | `PATCH` с `expected_version` | T-INT-10 |
 | Продление | `RenewPage` → `POST /renewals` | T-INT-11 |
 | Удаление | подтверждение + `DELETE` | T-INT-19 |

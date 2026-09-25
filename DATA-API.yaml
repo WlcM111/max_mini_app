@@ -3,7 +3,7 @@ schema_version: "1.0"                       # 1. версия конфигура
 solution:                                   # 2. наименование решения и команда
   name: "Вовремя"
   team_id: "vovremya"
-base_url: "https://vovremya.example.ru/api/v1"   # 3. базовый адрес API; при сдаче заменяется адресом стенда (REL-01)
+base_url: "https://maxminiapp.race-src.com/api/v1"   # 3. базовый адрес API боевого стенда
 auth:
   scheme: bearer
   header: Authorization

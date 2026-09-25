@@ -16,7 +16,7 @@
 | `/o/:orgId` | `DashboardPage` | `GET /organizations/{id}`, `GET /documents?limit=5`, `me` | переходы | viewer | загрузка, пусто, ошибка, баннер канала |
 | `/o/:orgId/documents` | `DocumentsPage` | `GET /documents` (курсор) | фильтр, поиск, подгрузка | viewer | загрузка, пусто (фильтр/поиск), ошибка |
 | `/o/:orgId/documents/new` | `DocumentFormPage` | `GET /catalog` | `POST /documents` | editor | отправка, ошибки полей, QR |
-| `/d/:docId` | `DocumentCardPage` | `GET /documents/{id}`, `GET /organizations/{id}` | «Продлить», «Изменить», «Удалить» | viewer (действия — editor) | загрузка, 404, подтверждение удаления |
+| `/d/:docId` | `DocumentCardPage` | `GET /documents/{id}`, `GET /organizations/{id}` | «Продлить», «Изменить», «Удалить», отметки чек-листа продления | viewer (изменение документа — editor, чек-лист доступен всем) | загрузка, 404, подтверждение удаления, прогресс чек-листа |
 | `/d/:docId/edit` | `DocumentFormPage` | `GET /documents/{id}` | `PATCH /documents/{id}` | editor | конфликт версии, ошибки полей |
 | `/d/:docId/renew` | `RenewPage` | `GET /documents/{id}` | `POST /renewals` | editor | загрузка, ошибка дат |
 | `/o/:orgId/members` | `MembersPage` | `GET /members`, `GET /invites` | смена роли, исключение, выход, отзыв | viewer | загрузка, пусто, ошибка, подтверждение |

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@maxhub/max-ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
@@ -14,6 +14,13 @@ import { openExternal } from '../../platform/max/links';
 import { roleAllows, useRole } from '../../session/useSession';
 import { getOrganization } from '../organizations/api';
 import { deleteDocument, getDocument } from './api';
+import {
+  clearChecklist,
+  progressText,
+  readChecklist,
+  saveChecklist,
+  toggleStep,
+} from './renewalChecklist';
 
 /** Карточка документа: срок, реквизиты, напоминание, история периодов, действия. */
 export function DocumentCardPage() {
@@ -22,6 +29,7 @@ export function DocumentCardPage() {
   const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [checklist, setChecklist] = useState<number[]>([]);
 
   const document = useQuery({
     queryKey: queryKeys.document(docId),
@@ -38,6 +46,25 @@ export function DocumentCardPage() {
     enabled: organizationId !== '',
   });
   const timezone = organization.data?.timezone ?? 'Europe/Moscow';
+
+  // Чек-лист продления: отметки хранятся на устройстве пользователя (FR-20).
+  const documentId = document.data?.id ?? '';
+  const stepCount = document.data?.renewal_steps.length ?? 0;
+  useEffect(() => {
+    if (documentId === '') return;
+    setChecklist(readChecklist(documentId, stepCount));
+  }, [documentId, stepCount]);
+
+  const toggleChecklistStep = (index: number) => {
+    const next = toggleStep(checklist, index);
+    setChecklist(next);
+    saveChecklist(documentId, next);
+  };
+
+  const resetChecklist = () => {
+    setChecklist([]);
+    clearChecklist(documentId);
+  };
 
   const remove = useMutation({
     mutationFn: () => deleteDocument(docId),
@@ -138,12 +165,34 @@ export function DocumentCardPage() {
 
       {doc.renewal_steps.length > 0 ? (
         <section className="card stack stack--tight" aria-label="Как продлить">
-          <h2 className="card__title">Как продлить</h2>
-          <ol className="stack stack--tight" style={{ paddingLeft: 18, margin: 0 }}>
+          <div className="row row--between">
+            <h2 className="card__title">Как продлить</h2>
+            <span className={checklist.length >= doc.renewal_steps.length ? 'badge badge--valid' : 'badge badge--info'}>
+              {progressText(checklist.length, doc.renewal_steps.length)}
+            </span>
+          </div>
+          <ul className="checklist" aria-label="Шаги продления">
             {doc.renewal_steps.map((step, index) => (
-              <li key={index}>{step}</li>
+              <li key={index}>
+                <label className="checklist__item">
+                  <input
+                    type="checkbox"
+                    checked={checklist.includes(index)}
+                    onChange={() => toggleChecklistStep(index)}
+                  />
+                  <span className={checklist.includes(index) ? 'checklist__text checklist__text--done' : 'checklist__text'}>
+                    {step}
+                  </span>
+                </label>
+              </li>
             ))}
-          </ol>
+          </ul>
+          {checklist.length > 0 ? (
+            <Button size="small" variant="ghost" onClick={resetChecklist}>
+              Снять отметки
+            </Button>
+          ) : null}
+          <span className="field__hint">Отметки видны только вам и хранятся на этом устройстве</span>
           {doc.data_status === 'model' ? <ModelDataBadge compact /> : null}
         </section>
       ) : null}

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { HttpResponse, http } from 'msw';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/render';
 import { server } from '../../test/msw/server';
 import { DocumentCardPage } from './DocumentCardPage';
 import { DOC_ID, document as documentFixture, me } from '../../test/fixtures';
+import { checklistKey } from './renewalChecklist';
 
 const route = `/d/${DOC_ID}`;
 const path = '/d/:docId';
@@ -36,6 +38,34 @@ describe('T-FE-PAGE: карточка документа', () => {
     );
     renderWithProviders(<DocumentCardPage />, { route, path });
     expect(await screen.findByText('План напоминаний временно недоступен')).toBeInTheDocument();
+  });
+
+  it('чек-лист продления отмечает шаги и сохраняет прогресс', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DocumentCardPage />, { route, path });
+    await screen.findByRole('heading', { name: 'Лицензия на алкоголь' });
+
+    const steps = screen.getAllByRole('checkbox');
+    expect(steps).toHaveLength(documentFixture.renewal_steps.length);
+    expect(screen.getByText('Шагов: 2')).toBeInTheDocument();
+
+    await user.click(steps[0]!);
+    expect(await screen.findByText('Готово 1 из 2')).toBeInTheDocument();
+    expect(window.localStorage.getItem(checklistKey(DOC_ID))).toBe('[0]');
+
+    await user.click(steps[1]!);
+    expect(await screen.findByText('Всё готово')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Снять отметки' }));
+    expect(await screen.findByText('Шагов: 2')).toBeInTheDocument();
+    expect(window.localStorage.getItem(checklistKey(DOC_ID))).toBeNull();
+  });
+
+  it('наблюдателю чек-лист доступен: это личная пометка, а не изменение данных', async () => {
+    const viewer = { ...me, memberships: [{ ...me.memberships[0]!, role: 'viewer' as const }] };
+    renderWithProviders(<DocumentCardPage />, { route, path, me: viewer });
+    await screen.findByRole('heading', { name: 'Лицензия на алкоголь' });
+    expect(screen.getAllByRole('checkbox')).toHaveLength(documentFixture.renewal_steps.length);
   });
 
   it('удалённый документ показывает понятное сообщение', async () => {

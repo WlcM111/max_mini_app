@@ -14,6 +14,7 @@
 | FR-05 | Подсказки типовых документов | `SuggestionsPage` | `GET /suggestions` | T-INT-05 | выполнено |
 | FR-06 | Реестр с фильтрами и поиском | `DocumentsPage` | `GET /documents` | T-FE-PAGE, T-INT-08 | выполнено |
 | FR-07 | Карточка, история, шаги продления | `DocumentCardPage` | `GET /documents/{id}` | T-FE-PAGE, T-INT-11 | выполнено |
+| FR-20 | Чек-лист подготовки к продлению | `DocumentCardPage`, `renewalChecklist.ts` | данные шагов из `GET /documents/{id}` | unit-тесты `renewalChecklist`, T-FE-PAGE (чек-лист) | выполнено |
 | FR-08 | Добавление, в том числе пакетом | `DocumentFormPage`, `DatesPage` | `POST /documents`, `/batch` | T-FE-DUP, T-INT-06, T-INT-09 | выполнено |
 | FR-09 | Продление | `RenewPage` | `POST /renewals` | T-INT-11 | выполнено |
 | FR-10 | Участники, роли, приглашения | `MembersPage`, `InvitePage`, `InviteAcceptPage` | члены и приглашения | T-FE-PAGE, T-INT-14, T-INT-16, T-INT-17 | выполнено |
