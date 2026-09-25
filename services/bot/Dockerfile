@@ -20,7 +20,7 @@ RUN awk '{sub(/\r$/,""); print}' /ca/russian_trusted_root_ca.pem /ca/russian_tru
     && [ "$(grep -c '^-----BEGIN CERTIFICATE-----$' /out/russian_trusted_ca_bundle.pem)" -ge 1 ]
 
 FROM alpine:3.22
-RUN apk add --no-cache ca-certificates && adduser -D -u 10001 app
+RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 10001 app
 COPY --from=build /out/bot /app/bot
 COPY --from=build /out/russian_trusted_ca_bundle.pem /etc/vovremya/ca/russian_trusted_ca_bundle.pem
 USER 10001

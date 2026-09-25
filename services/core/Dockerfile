@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/core ./services/core/cmd/core
 
 FROM alpine:3.22
-RUN apk add --no-cache ca-certificates && adduser -D -u 10001 app
+RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 10001 app
 COPY --from=build /out/core /app/core
 USER 10001
 EXPOSE 8080 8081

@@ -17,6 +17,10 @@ echo "== Запуск =="
 [ "$(git ls-files -s deploy/postgres/init/01-init.sh | awk '{print $1}')" = 100755 ] && ok "режим 100755 в git (D-20)" || bad "git update-index --chmod=+x deploy/postgres/init/01-init.sh"
 grep -q 'BOT_MODE: ${BOT_MODE' compose.yaml && ok "bot-migrate получает BOT_MODE (D-21)" || bad "в bot-migrate нет BOT_MODE"
 
+for d in services/core/Dockerfile services/bot/Dockerfile services/reminders/Dockerfile; do
+  grep -q "apk add --no-cache ca-certificates tzdata" "$d" && ok "$d: tzdata (D-26)" || bad "$d: nuzhen paket tzdata, inache IANA-poyasa ne raspoznayutsya"
+done
+
 echo "== Сертификаты канала MAX =="
 certs=$(awk '{sub(/\r$/,""); print}' deploy/ca/*.pem 2>/dev/null | grep -c '^-----BEGIN CERTIFICATE-----$')
 [ "$certs" -ge 2 ] && ok "в deploy/ca найдено сертификатов: $certs (D-22)" || bad "в deploy/ca меньше двух сертификатов: $certs"
