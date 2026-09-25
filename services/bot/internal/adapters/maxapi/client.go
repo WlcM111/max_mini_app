@@ -302,7 +302,7 @@ func (c *Client) SetCommands(ctx context.Context, cmds []ports.BotCommand) error
 	for _, c := range cmds {
 		payload = append(payload, botCommand{Name: c.Name, Description: c.Description})
 	}
-	resp, err := c.do(ctx, http.MethodPatch, "set_commands", "/me/commands", nil, payload)
+	resp, err := c.do(ctx, http.MethodPatch, "set_commands", "/me/commands", nil, commandsRequest{Commands: payload})
 	if err != nil {
 		return fmt.Errorf("PATCH /me/commands: %w", err)
 	}

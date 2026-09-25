@@ -73,7 +73,7 @@
 | F-50 | Не более 2 сообщений в секунду в один диалог, чат или канал | S-MSG | Лимитер на получателя |
 | F-51 | Inline-клавиатура: до 210 кнопок, 30 рядов, до 7 в ряду (до 3 для `link`, `open_app`, `request_geo_location`, `request_contact`); типы `callback`, `link` (URL до 2048), `request_contact`, `request_geo_location`, `open_app`, `message`, `clipboard`; кнопки не пересылаются вместе с сообщением | S-API | Не более 3 кнопок, по одной в ряду |
 | F-52 | `GET /me` возвращает `user_id`, `name`, `username`, `is_bot`, `last_activity_time` | S-API | GetBotProfile |
-| F-53 | `PATCH /me/commands` задаёт команды бота | S-API | Команды `/start`, `/help` |
+| F-53 | `PATCH /me/commands` задаёт команды бота; тело — объект `{"commands": [...]}`, голый массив отклоняется с 400 | S-API | Команды `/start`, `/help` |
 | F-54 | `GET /chats` не поддерживается с июня 2026; `POST /chats/{chatId}/members` ограничен с 09.09.2026 и удаляется 30.09.2026 | S-API | Не используются |
 | F-55 | `Message`: `sender`, `recipient`, `timestamp` (мс), `link`, `body` (MessageBody), `stat`, `url` | S-MOBJ | Идентификатор сообщения сохраняется из `body` |
 

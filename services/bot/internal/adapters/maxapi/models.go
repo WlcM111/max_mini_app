@@ -87,6 +87,12 @@ type botCommand struct {
 	Description string `json:"description"`
 }
 
+// commandsRequest — тело PATCH /me/commands: массив оборачивается в поле
+// commands, голый массив MAX отклоняет с кодом 400 (D-24).
+type commandsRequest struct {
+	Commands []botCommand `json:"commands"`
+}
+
 // renderSendBody формирует тело запроса к MAX по сообщению очереди (spec §8).
 func renderSendBody(msg domain.Message, profile domain.Profile, kind ButtonKind) (sendMessageBody, error) {
 	body := sendMessageBody{Text: msg.Text, Notify: !msg.Silent}
