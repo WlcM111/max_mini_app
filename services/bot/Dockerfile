@@ -11,7 +11,13 @@ ARG VERSION=dev
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/bot ./services/bot/cmd/bot
 COPY deploy/ca /ca
-RUN cat /ca/russian_trusted_root_ca.pem /ca/russian_trusted_sub_ca.pem > /out/russian_trusted_ca_bundle.pem
+# awk 1 завершает каждый файл переводом строки: при склейке через cat строки
+# -----END CERTIFICATE----- и -----BEGIN CERTIFICATE----- слипаются, и Go
+# не разбирает ни один сертификат. Проверка ниже обрывает сборку, если в бандле
+# меньше двух корректных заголовков.
+RUN awk '{sub(/\r$/,""); print}' /ca/russian_trusted_root_ca.pem /ca/russian_trusted_sub_ca.pem \
+        > /out/russian_trusted_ca_bundle.pem \
+    && [ "$(grep -c '^-----BEGIN CERTIFICATE-----$' /out/russian_trusted_ca_bundle.pem)" -ge 1 ]
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates && adduser -D -u 10001 app
