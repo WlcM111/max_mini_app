@@ -1,0 +1,124 @@
+# Проверки собственного API решения «Вовремя». Схема файла — пункты 1–9 раздела «Для решений с собственным API» кейса.
+schema_version: "1.0"                       # 1. версия конфигурации
+solution:                                   # 2. наименование решения и команда
+  name: "Вовремя"
+  team_id: "vovremya"
+base_url: "https://vovremya.example.ru/api/v1"   # 3. базовый адрес API; при сдаче заменяется адресом стенда (REL-01)
+auth:
+  scheme: bearer
+  header: Authorization
+  roles:
+    editor: "токен учётной записи reviewer_editor (первый слайд презентации)"
+    viewer: "токен учётной записи reviewer_viewer (первый слайд презентации)"
+    anonymous: "без заголовка Authorization"
+fixtures:                                   # тестовые данные seed-demo (demo/demo-data.json)
+  organization_id: "0b6f2c1e-5a3d-4c8e-9f21-7d4a6b8c9e01"
+  document_id: "3c9e7a52-1f4b-4d6a-8e2c-5b7f9a1d3e02"
+checks:                                     # 4. обязательные проверки основной функциональности
+  - id: me
+    description: Профиль и членства текущего пользователя
+    method: GET                             # 5. метод и относительный путь
+    path: /me
+    params: {path: {}, query: {}, headers: {}, body: null}   # 6. параметры запроса
+    role: viewer                            # 7. роль
+    expected_status: [200]                  # 8. статус-коды
+    response:                               # 9. формат ответа
+      content_type: application/json
+      schema: "openapi.yaml#/components/schemas/Me"
+      required_fields: [account.id, memberships, reminders_channel.state, limits.max_documents_per_organization]
+  - id: catalog
+    description: Справочник типов документов и видов деятельности
+    method: GET
+    path: /catalog
+    params: {path: {}, query: {}, headers: {}, body: null}
+    role: viewer
+    expected_status: [200]
+    response:
+      content_type: application/json
+      schema: "openapi.yaml#/components/schemas/Catalog"
+      required_fields: [document_types, business_categories, regions, features]
+  - id: organization
+    description: Организация со сводкой по статусам сроков
+    method: GET
+    path: /organizations/{organization_id}
+    params: {path: {organization_id: fixture}, query: {}, headers: {}, body: null}
+    role: viewer
+    expected_status: [200]
+    response:
+      content_type: application/json
+      schema: "openapi.yaml#/components/schemas/Organization"
+      required_fields: [id, name, my_role, stats.expired, stats.expiring, stats.valid, version]
+  - id: suggestions
+    description: Подбор типовых документов по профилю
+    method: GET
+    path: /organizations/{organization_id}/suggestions
+    params: {path: {organization_id: fixture}, query: {}, headers: {}, body: null}
+    role: viewer
+    expected_status: [200]
+    response:
+      content_type: application/json
+      schema: "openapi.yaml#/components/schemas/SuggestionList"
+      required_fields: [items]
+  - id: documents-expiring
+    description: Реестр документов, фильтр «скоро истекает»
+    method: GET
+    path: /organizations/{organization_id}/documents
+    params: {path: {organization_id: fixture}, query: {status: expiring, limit: "20"}, headers: {}, body: null}
+    role: viewer
+    expected_status: [200]
+    response:
+      content_type: application/json
+      schema: "openapi.yaml#/components/schemas/DocumentPage"
+      required_fields: [items, "items[].id", "items[].title", "items[].status", "items[].days_left"]
+  - id: document
+    description: Карточка документа
+    method: GET
+    path: /documents/{document_id}
+    params: {path: {document_id: fixture}, query: {}, headers: {}, body: null}
+    role: viewer
+    expected_status: [200]
+    response:
+      content_type: application/json
+      schema: "openapi.yaml#/components/schemas/Document"
+      required_fields: [id, title, status, current_period.valid_until, reminder_offsets_days, periods, can_edit]
+  - id: document-create
+    description: Создание документа (повтор с тем же id даёт 200)
+    method: POST
+    path: /organizations/{organization_id}/documents
+    params:
+      path: {organization_id: fixture}
+      query: {}
+      headers: {Content-Type: application/json}
+      body: {id: "9d7c6b5a-4e3f-4a2b-8c1d-0e9f8a7b6c51", title: "Проверочный документ (тестовые данные)", valid_until: "2027-01-31", reminder_offsets_days: [30, 7]}
+    role: editor
+    expected_status: [201, 200]
+    response:
+      content_type: application/json
+      schema: "openapi.yaml#/components/schemas/Document"
+      required_fields: [id, title, status, version]
+  - id: document-create-forbidden
+    description: Роль viewer не может создавать документы
+    method: POST
+    path: /organizations/{organization_id}/documents
+    params:
+      path: {organization_id: fixture}
+      query: {}
+      headers: {Content-Type: application/json}
+      body: {id: "1a2b3c4d-5e6f-4a1b-9c2d-3e4f5a6b7c81", title: "Не должен создаться", valid_until: "2027-01-31"}
+    role: viewer
+    expected_status: [403]
+    response:
+      content_type: application/problem+json
+      schema: "openapi.yaml#/components/schemas/Problem"
+      required_fields: [code, status, title]
+  - id: unauthenticated
+    description: Запрос без токена отклоняется
+    method: GET
+    path: /me
+    params: {path: {}, query: {}, headers: {}, body: null}
+    role: anonymous
+    expected_status: [401]
+    response:
+      content_type: application/problem+json
+      schema: "openapi.yaml#/components/schemas/Problem"
+      required_fields: [code, status]

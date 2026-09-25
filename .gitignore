@@ -1,0 +1,23 @@
+.env
+.env.*
+!.env.example
+!frontend/.env.development
+secrets/
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+coverage.out
+*.log
+
+# Скомпилированные бинарники локальных сборок (go build ./test/e2e и т. п.)
+/e2e
+/core
+/bot
+/reminders
+
+# Локальные копии и артефакты правок
+*.bak
+*.backup
+*.backup.*
+ports.txt

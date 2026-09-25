@@ -1,0 +1,77 @@
+// Контракт core-service -> reminders-service: чтение плана напоминаний для
+// пользовательских экранов. Версия 1.0.0. Только чтение, состояние не меняется.
+syntax = "proto3";
+
+package vovremya.reminders.v1;
+
+import "google/protobuf/timestamp.proto";
+import "vovremya/reminders/v1/ingest.proto";
+
+option go_package = "vovremya/gen/go/vovremya/reminders/v1;remindersv1";
+
+// ReminderQueryService отдаёт план напоминаний потребителю публичного API (core).
+service ReminderQueryService {
+  // Ближайшее запланированное напоминание получателю по каждому документу.
+  // Используется для полей next_reminder_at реестра и карточки документа.
+  rpc GetNextReminders(GetNextRemindersRequest) returns (GetNextRemindersResponse);
+  // Полный план по одному документу для всех получателей (карточка документа, диагностика).
+  rpc GetDocumentPlan(GetDocumentPlanRequest) returns (GetDocumentPlanResponse);
+  // Состояние синхронизации агрегата: применена ли последняя версия из core.
+  // Позволяет core отличить актуальное значение плана от ещё не пересчитанного.
+  rpc GetSyncStatus(GetSyncStatusRequest) returns (GetSyncStatusResponse);
+}
+
+enum ReminderStatus {
+  REMINDER_STATUS_UNSPECIFIED = 0;
+  REMINDER_STATUS_PLANNED = 1;     // запланировано, ожидает наступления due_at
+  REMINDER_STATUS_HANDED_OFF = 2;  // передано в bot-service
+  REMINDER_STATUS_CANCELLED = 3;   // отменено перепланированием
+  REMINDER_STATUS_SKIPPED = 4;     // устарело (позже due_at + grace) или неотправляемо
+}
+
+message GetNextRemindersRequest {
+  string account_id = 1;             // UUID v4 получателя
+  repeated string document_ids = 2;  // 1..200 UUID v4
+}
+
+message NextReminder {
+  string document_id = 1;
+  google.protobuf.Timestamp due_at = 2; // ближайшее planned
+  uint32 days_before = 3;
+}
+
+message GetNextRemindersResponse {
+  // Только документы, для которых есть запланированное напоминание.
+  repeated NextReminder items = 1;
+}
+
+message GetDocumentPlanRequest { string document_id = 1; }
+
+message PlannedReminder {
+  string account_id = 1;
+  uint32 days_before = 2;
+  google.protobuf.Timestamp due_at = 3;
+  ReminderStatus status = 4;
+  google.protobuf.Timestamp handed_off_at = 5;
+}
+
+message GetDocumentPlanResponse {
+  string document_id = 1;
+  // Версия документа, применённая в проекции reminders-service.
+  uint64 applied_version = 2;
+  repeated PlannedReminder items = 3;
+}
+
+message GetSyncStatusRequest {
+  AggregateType aggregate_type = 1;
+  string aggregate_id = 2;
+  // Версия агрегата в core на момент запроса; сравнивается с применённой.
+  uint64 expected_version = 3;
+}
+
+message GetSyncStatusResponse {
+  uint64 applied_version = 1;
+  // true — applied_version >= expected_version (план учитывает последнее изменение).
+  bool in_sync = 2;
+  google.protobuf.Timestamp applied_at = 3;
+}

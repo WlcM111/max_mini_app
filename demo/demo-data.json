@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "note": "Тестовые данные для демонстрации и проверки. Даты задаются смещением от текущей даты при выполнении core seed-demo.",
+  "owner": {
+    "review_login": "demo_owner",
+    "first_name": "Владелец (тестовые данные)"
+  },
+  "organization": {
+    "id": "0b6f2c1e-5a3d-4c8e-9f21-7d4a6b8c9e01",
+    "name": "Кафе «Пример» (тестовые данные)",
+    "business_category_code": "food_service",
+    "region_code": "RU-SPE",
+    "timezone": "Europe/Moscow",
+    "feature_codes": [
+      "has_premises",
+      "rents_premises",
+      "has_employees",
+      "sells_alcohol",
+      "uses_kkt",
+      "uses_scales"
+    ]
+  },
+  "documents": [
+    {
+      "id": "3c9e7a52-1f4b-4d6a-8e2c-5b7f9a1d3e02",
+      "document_type_code": "qualified_esignature",
+      "title": "КЭП руководителя (тестовые данные)",
+      "valid_until_offset_days": 12,
+      "reminder_offsets_days": [
+        30,
+        14,
+        3
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "b4cfe7c0-1c74-4376-8d98-e4c583373426",
+      "document_type_code": "kkt_fiscal_drive",
+      "title": "Ключ ФН кассы №1 (тестовые данные)",
+      "valid_until_offset_days": -3,
+      "reminder_offsets_days": [
+        30,
+        14,
+        3
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "5a39d25c-b2b9-44de-9c47-6add70a2997a",
+      "document_type_code": "alcohol_retail_license",
+      "title": "Лицензия на розничную продажу алкоголя (тестовые данные)",
+      "valid_until_offset_days": 45,
+      "reminder_offsets_days": [
+        90,
+        60,
+        30
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "c915d383-2755-4b0e-9a43-03f96c3930ef",
+      "document_type_code": "premises_lease",
+      "title": "Договор аренды помещения (тестовые данные)",
+      "valid_until_offset_days": 120,
+      "reminder_offsets_days": [
+        60,
+        30,
+        7
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "e9fb2456-b23d-4c53-aa01-594d4738f069",
+      "document_type_code": "waste_removal_contract",
+      "title": "Договор на вывоз ТКО (тестовые данные)",
+      "valid_until_offset_days": 200,
+      "reminder_offsets_days": [
+        30,
+        7
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "efbe07c3-de38-4626-b8b1-2d2466651071",
+      "document_type_code": "pest_control_contract",
+      "title": "Договор на дезинсекцию и дератизацию (тестовые данные)",
+      "valid_until_offset_days": 20,
+      "reminder_offsets_days": [
+        30,
+        7
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "8f32106d-5a23-4102-9981-f0c26df4002e",
+      "document_type_code": "employee_medical_exam",
+      "title": "Медосмотр: повар (тестовые данные)",
+      "valid_until_offset_days": 5,
+      "reminder_offsets_days": [
+        30,
+        14,
+        3
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "a6cebf27-c3ea-404e-b4bc-3f0e0919f615",
+      "document_type_code": "employee_medical_exam",
+      "title": "Медосмотр: официант (тестовые данные)",
+      "valid_until_offset_days": 60,
+      "reminder_offsets_days": [
+        30,
+        14,
+        3
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "502c948e-3414-4da9-a846-c6eb9505e7b7",
+      "document_type_code": "production_control_program",
+      "title": "Программа производственного контроля (тестовые данные)",
+      "valid_until_offset_days": 300,
+      "reminder_offsets_days": [
+        30,
+        7
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "5c6bef1c-f86b-4fd3-bd1c-4aca84d78f60",
+      "document_type_code": "scales_verification",
+      "title": "Поверка весов на кухне (тестовые данные)",
+      "valid_until_offset_days": 25,
+      "reminder_offsets_days": [
+        30,
+        7
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "d1f8cfca-758a-49af-a4a9-fbd763d4ccdb",
+      "document_type_code": "fire_extinguishers_service",
+      "title": "Обслуживание огнетушителей (тестовые данные)",
+      "valid_until_offset_days": -10,
+      "reminder_offsets_days": [
+        30,
+        7
+      ],
+      "notes": "Тестовые данные"
+    },
+    {
+      "id": "96d00fc4-b2d7-4e18-af1a-3c2c6d3dd96e",
+      "document_type_code": null,
+      "title": "Договор с поставщиком кофе (тестовые данные)",
+      "valid_until_offset_days": null,
+      "reminder_offsets_days": [],
+      "notes": "Тестовые данные"
+    }
+  ]
+}

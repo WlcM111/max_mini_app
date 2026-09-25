@@ -1,0 +1,22 @@
+{
+  "update_type": "message_created",
+  "timestamp": 1790000100000,
+  "message": {
+    "sender": {
+      "user_id": 1001,
+      "first_name": "Тест",
+      "is_bot": false
+    },
+    "recipient": {
+      "chat_id": 777001,
+      "chat_type": "dialog",
+      "user_id": 500100
+    },
+    "timestamp": 1790000100000,
+    "body": {
+      "mid": "mid.000001",
+      "seq": 1,
+      "text": "/help"
+    }
+  }
+}

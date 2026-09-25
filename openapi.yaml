@@ -1,0 +1,1236 @@
+openapi: 3.1.0
+info:
+  title: Vovremya Mini App Public API
+  version: 1.1.0
+  summary: HTTP API сервиса core для мини-приложения «Вовремя» в MAX
+  description: |
+    Единственный источник истины внешнего HTTP-контракта (владелец — Разработчик B).
+    Транспорт: HTTPS через edge (Caddy) на том же origin, что и статика мини-приложения.
+    Формат: JSON UTF-8, snake_case; даты — `YYYY-MM-DD` (локальная дата организации),
+    моменты времени — RFC 3339 UTC. Ошибки — `application/problem+json` (RFC 9457).
+    Аутентификация: `Authorization: Bearer <session token>`; токен выдаёт `POST /sessions`
+    после серверной проверки подписи `initData` MAX.
+    Идемпотентность создания: клиент передаёт `id` (UUID v4) создаваемого ресурса.
+    Повтор с тем же `id` и тем же содержимым возвращает 200 и существующий ресурс,
+    с другим содержимым — 409 `CONFLICT_ID_REUSED`.
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Локальный запуск через Docker Compose (APP_ENV=local)
+  - url: https://{domain}/api/v1
+    description: Опубликованный стенд (APP_ENV=prod)
+    variables:
+      domain:
+        default: app.vovremya.ru
+        description: Фактический домен задаётся в EDGE_SITE_ADDRESS при развёртывании
+security:
+  - bearerAuth: []
+tags:
+  - name: session
+  - name: catalog
+  - name: organizations
+  - name: documents
+  - name: members
+  - name: invites
+  - name: exports
+  - name: telemetry
+paths:
+  /sessions:
+    post:
+      tags: [session]
+      operationId: createSession
+      summary: Создать сессию по данным запуска MAX (initData)
+      security: []
+      x-min-role: none
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SessionCreateRequest' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '201':
+          description: Сессия создана
+          headers:
+            X-Request-Id: { $ref: '#/components/headers/X-Request-Id' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /sessions/current:
+    delete:
+      tags: [session]
+      operationId: deleteCurrentSession
+      summary: Завершить текущую сессию
+      x-min-role: authenticated
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '204': { description: Сессия отозвана }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me:
+    get:
+      tags: [session]
+      operationId: getMe
+      summary: Текущий пользователь, его организации и состояние канала напоминаний
+      x-min-role: authenticated
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+    delete:
+      tags: [session]
+      operationId: deleteMe
+      summary: Удалить аккаунт и все организации, где пользователь — владелец
+      x-min-role: authenticated
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '204': { description: Аккаунт и связанные данные удалены }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /catalog:
+    get:
+      tags: [catalog]
+      operationId: getCatalog
+      summary: Справочники (виды деятельности, регионы, признаки, типы документов)
+      x-min-role: authenticated
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          schema: { type: string, maxLength: 80 }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          headers:
+            ETag: { schema: { type: string } }
+            Cache-Control: { schema: { type: string, const: 'private, max-age=3600' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Catalog' }
+        '304': { description: Справочник не изменился }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /organizations:
+    post:
+      tags: [organizations]
+      operationId: createOrganization
+      summary: Создать организацию (текущий пользователь становится владельцем)
+      x-min-role: authenticated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrganizationCreate' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '201':
+          description: Создана
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '200':
+          description: Повтор идемпотентного запроса, организация уже создана
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /organizations/{organizationId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [organizations]
+      operationId: getOrganization
+      summary: Организация и сводка статусов документов
+      x-min-role: viewer
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [organizations]
+      operationId: updateOrganization
+      summary: Изменить профиль организации (оптимистичная блокировка по version)
+      x-min-role: editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrganizationUpdate' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [organizations]
+      operationId: deleteOrganization
+      summary: Удалить организацию со всеми документами, участниками и напоминаниями
+      x-min-role: owner
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '204': { description: Удалена }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /organizations/{organizationId}/suggestions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [organizations]
+      operationId: listSuggestions
+      summary: Типовые документы по профилю, ещё не добавленные в реестр
+      x-min-role: viewer
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuggestionList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /organizations/{organizationId}/documents:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [documents]
+      operationId: listDocuments
+      summary: Реестр документов, отсортированный по сроку (ближайшие первыми, бессрочные в конце)
+      x-min-role: viewer
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/DeadlineStatus' }
+        - name: q
+          in: query
+          required: false
+          description: Поиск подстроки в названии без учёта регистра
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string, maxLength: 200 }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [documents]
+      operationId: createDocument
+      summary: Добавить документ (идемпотентно по id)
+      x-min-role: editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DocumentCreate' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '201':
+          description: Создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '200':
+          description: Повтор идемпотентного запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /organizations/{organizationId}/documents/batch:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [documents]
+      operationId: createDocumentsBatch
+      summary: Пакетное добавление 1–30 документов в одной транзакции (онбординг)
+      x-min-role: editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DocumentsBatchCreate' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '201':
+          description: Все документы созданы или уже существовали с тем же содержимым
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentsBatchResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [documents]
+      operationId: getDocument
+      summary: Карточка документа с историей периодов и шагами продления
+      x-min-role: viewer
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [documents]
+      operationId: updateDocument
+      summary: Изменить реквизиты, исправить даты текущего периода, отступы напоминаний
+      x-min-role: editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DocumentUpdate' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [documents]
+      operationId: deleteDocument
+      summary: Удалить документ вместе с периодами и напоминаниями
+      x-min-role: editor
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '204': { description: Удалён }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /documents/{documentId}/renewals:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    post:
+      tags: [documents]
+      operationId: renewDocument
+      summary: Продлить документ — создать новый текущий период (идемпотентно по id периода)
+      x-min-role: editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RenewalCreate' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '201':
+          description: Период создан, напоминания перепланированы
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '200':
+          description: Повтор идемпотентного запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /organizations/{organizationId}/members:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [members]
+      operationId: listMembers
+      summary: Участники организации
+      x-min-role: viewer
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemberList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /organizations/{organizationId}/members/{accountId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/AccountId'
+    patch:
+      tags: [members]
+      operationId: updateMemberRole
+      summary: Сменить роль участника (только владелец; роль владельца не меняется)
+      x-min-role: owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MemberRoleUpdate' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Member' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [members]
+      operationId: removeMember
+      summary: Исключить участника (владелец) или выйти из организации (сам участник, не владелец)
+      x-min-role: viewer
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '204': { description: Участник удалён, его запланированные напоминания отменены }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /organizations/{organizationId}/notification-settings:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [members]
+      operationId: getMyNotificationSettings
+      summary: Мои настройки напоминаний в этой организации
+      x-min-role: viewer
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationSettings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [members]
+      operationId: putMyNotificationSettings
+      summary: Изменить мои настройки напоминаний (перепланирует мои напоминания)
+      x-min-role: viewer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotificationSettings' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationSettings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /organizations/{organizationId}/invites:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [invites]
+      operationId: listInvites
+      summary: Активные приглашения (без ссылок — токен хранится только в виде хеша)
+      x-min-role: owner
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InviteList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [invites]
+      operationId: createInvite
+      summary: Создать одноразовое приглашение и ссылку-диплинк на мини-приложение
+      x-min-role: owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteCreate' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '201':
+          description: Создано. Ссылка возвращается только в этом ответе.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InviteCreated' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /invites/{inviteId}:
+    parameters:
+      - name: inviteId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [invites]
+      operationId: revokeInvite
+      summary: Отозвать приглашение
+      x-min-role: owner
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '204': { description: Отозвано }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /invites/preview:
+    post:
+      tags: [invites]
+      operationId: previewInvite
+      summary: Показать, куда приглашают, до принятия
+      x-min-role: authenticated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteTokenRequest' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvitePreview' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /invites/accept:
+    post:
+      tags: [invites]
+      operationId: acceptInvite
+      summary: Принять приглашение (одноразово)
+      x-min-role: authenticated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteTokenRequest' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: Пользователь добавлен в организацию
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InviteAccepted' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /organizations/{organizationId}/exports/calendar:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [exports]
+      operationId: createCalendarExport
+      summary: Подготовить одноразовую ссылку на ICS-файл сроков для WebApp.downloadFile
+      x-min-role: viewer
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '201':
+          description: Ссылка создана
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CalendarExport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /downloads/{downloadToken}:
+    parameters:
+      - name: downloadToken
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
+    get:
+      tags: [exports]
+      operationId: downloadCalendar
+      summary: Скачать ICS по одноразовой ссылке (без Bearer; не более 3 скачиваний за 10 минут)
+      security: []
+      x-min-role: none
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: Файл календаря
+          headers:
+            Content-Disposition: { schema: { type: string } }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content:
+            text/calendar:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '410':
+          description: Ссылка истекла или исчерпана
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /client-events:
+    post:
+      tags: [telemetry]
+      operationId: postClientEvents
+      summary: Технические события клиента (ошибки запуска, ошибки MAX Bridge, длительность bootstrap)
+      security:
+        - {}
+        - bearerAuth: []
+      x-min-role: none
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientEventBatch' }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '202': { description: Принято }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: 'vvs_<43 символа base64url>'
+  headers:
+    X-Request-Id:
+      description: Идентификатор запроса (генерирует edge), повторяется в problem.request_id
+      schema: { type: string, maxLength: 64 }
+    Retry-After:
+      description: Через сколько секунд повторить запрос
+      schema: { type: integer, minimum: 1, maximum: 3600 }
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    BadRequest:
+      description: Некорректный запрос или ошибка валидации (VALIDATION_FAILED)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Нет/недействителен токен (UNAUTHENTICATED) или initData (LAUNCH_DATA_INVALID, LAUNCH_DATA_EXPIRED)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Недостаточно прав роли (FORBIDDEN)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Ресурс не найден или недоступен пользователю (NOT_FOUND, INVITE_INVALID)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Конфликт версии, повторное использование id, квота, повторное членство
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    TooManyRequests:
+      description: Превышен лимит запросов (RATE_LIMITED)
+      headers:
+        Retry-After: { $ref: '#/components/headers/Retry-After' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unexpected:
+      description: Иная ошибка (RATE_LIMITED, OVERLOADED, DEPENDENCY_UNAVAILABLE, INTERNAL)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unavailable:
+      description: Перегрузка (OVERLOADED) или недоступна зависимость (DEPENDENCY_UNAVAILABLE)
+      headers:
+        Retry-After: { $ref: '#/components/headers/Retry-After' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    LocalDate:
+      type: string
+      format: date
+      description: Календарная дата в часовом поясе организации
+    Role:
+      type: string
+      enum: [owner, editor, viewer]
+    InvitableRole:
+      type: string
+      enum: [editor, viewer]
+    DeadlineStatus:
+      type: string
+      enum: [expired, expiring, valid, no_expiry]
+      description: 'expired — срок раньше сегодняшней даты; expiring — ≤ 30 дней; valid — > 30 дней; no_expiry — бессрочный'
+    DataStatus:
+      type: string
+      enum: [model, verified]
+      description: model — модельные данные справочника, не сверенные с первоисточником
+    Platform:
+      type: string
+      enum: [ios, android, desktop, web]
+    RecipientState:
+      type: string
+      enum: [unknown, active, muted, stopped, unreachable, unavailable]
+      description: unavailable — сервис bot не ответил за отведённое время
+    RemindersState:
+      type: string
+      enum: [actual, pending, unavailable]
+      description: >-
+        Состояние плана напоминаний для документа: actual — reminders-service учёл последнее изменение;
+        pending — изменение ещё не доставлено; unavailable — план временно недоступен.
+    ErrorCode:
+      type: string
+      enum:
+        - VALIDATION_FAILED
+        - UNAUTHENTICATED
+        - LAUNCH_DATA_INVALID
+        - LAUNCH_DATA_EXPIRED
+        - FORBIDDEN
+        - NOT_FOUND
+        - CONFLICT_VERSION
+        - CONFLICT_ID_REUSED
+        - INVITE_INVALID
+        - INVITE_EXPIRED
+        - ALREADY_MEMBER
+        - QUOTA_EXCEEDED
+        - LINK_GONE
+        - RATE_LIMITED
+        - OVERLOADED
+        - DEPENDENCY_UNAVAILABLE
+        - INTERNAL
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, code, message]
+      properties:
+        field: { type: string, maxLength: 100 }
+        code: { type: string, enum: [required, too_long, too_short, invalid_format, out_of_range, not_unique, unknown_value, invalid_combination] }
+        message: { type: string, maxLength: 300 }
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, code, request_id]
+      properties:
+        type: { type: string, format: uri, example: 'urn:vovremya:problem:validation-failed' }
+        title: { type: string, maxLength: 200 }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string, maxLength: 1000 }
+        code: { $ref: '#/components/schemas/ErrorCode' }
+        request_id: { type: string, maxLength: 64 }
+        errors:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/FieldError' }
+    SessionCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [init_data]
+      properties:
+        init_data:
+          type: string
+          minLength: 16
+          maxLength: 4096
+          description: Значение window.WebApp.initData без изменений
+        platform: { $ref: '#/components/schemas/Platform' }
+        app_version: { type: string, maxLength: 32 }
+    StartTarget:
+      type: object
+      additionalProperties: false
+      required: [kind]
+      description: Разобранный start_param из проверенных данных запуска
+      properties:
+        kind: { type: string, enum: [none, document, organization, invite] }
+        document_id: { $ref: '#/components/schemas/Uuid' }
+        organization_id: { $ref: '#/components/schemas/Uuid' }
+        invite_token: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
+    Account:
+      type: object
+      additionalProperties: false
+      required: [id, first_name, last_name, username]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        first_name: { type: string, minLength: 1, maxLength: 128 }
+        last_name: { type: [string, 'null'], maxLength: 128 }
+        username: { type: [string, 'null'], maxLength: 64 }
+    Session:
+      type: object
+      additionalProperties: false
+      required: [token, expires_at, account, start]
+      properties:
+        token: { type: string, pattern: '^vvs_[A-Za-z0-9_-]{43}$' }
+        expires_at: { type: string, format: date-time }
+        account: { $ref: '#/components/schemas/Account' }
+        start: { $ref: '#/components/schemas/StartTarget' }
+    MembershipSummary:
+      type: object
+      additionalProperties: false
+      required: [organization_id, organization_name, role, notify_enabled]
+      properties:
+        organization_id: { $ref: '#/components/schemas/Uuid' }
+        organization_name: { type: string, maxLength: 100 }
+        role: { $ref: '#/components/schemas/Role' }
+        notify_enabled: { type: boolean }
+    RemindersChannel:
+      type: object
+      additionalProperties: false
+      required: [state, bot_chat_url]
+      properties:
+        state: { $ref: '#/components/schemas/RecipientState' }
+        bot_chat_url: { type: [string, 'null'], maxLength: 300, description: 'https://max.ru/<botName> — открыть через WebApp.openMaxLink' }
+    Limits:
+      type: object
+      additionalProperties: false
+      required: [max_organizations, max_documents_per_organization, max_members_per_organization, max_reminder_offsets]
+      properties:
+        max_organizations: { type: integer, const: 20 }
+        max_documents_per_organization: { type: integer, const: 500 }
+        max_members_per_organization: { type: integer, const: 30 }
+        max_reminder_offsets: { type: integer, const: 5 }
+    Me:
+      type: object
+      additionalProperties: false
+      required: [account, memberships, reminders_channel, limits]
+      properties:
+        account: { $ref: '#/components/schemas/Account' }
+        memberships:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/MembershipSummary' }
+        reminders_channel: { $ref: '#/components/schemas/RemindersChannel' }
+        limits: { $ref: '#/components/schemas/Limits' }
+    BusinessCategory:
+      type: object
+      additionalProperties: false
+      required: [code, title]
+      properties:
+        code: { type: string, pattern: '^[a-z][a-z0-9_]{1,39}$' }
+        title: { type: string, maxLength: 100 }
+    Region:
+      type: object
+      additionalProperties: false
+      required: [code, title, default_timezone]
+      properties:
+        code: { type: string, pattern: '^RU-[A-Z]{2,3}$|^XX-OTHER$' }
+        title: { type: string, maxLength: 100 }
+        default_timezone: { type: string, maxLength: 64 }
+    Feature:
+      type: object
+      additionalProperties: false
+      required: [code, question, hint]
+      properties:
+        code: { type: string, pattern: '^[a-z][a-z0-9_]{1,39}$' }
+        question: { type: string, maxLength: 200 }
+        hint: { type: [string, 'null'], maxLength: 300 }
+    CatalogSource:
+      type: object
+      additionalProperties: false
+      required: [title, url, checked_on]
+      properties:
+        title: { type: string, maxLength: 200 }
+        url: { type: string, format: uri, maxLength: 500 }
+        checked_on: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+    DocumentType:
+      type: object
+      additionalProperties: false
+      required: [code, title, description, data_status, source, default_reminder_offsets_days, renewal_steps]
+      properties:
+        code: { type: string, pattern: '^[a-z][a-z0-9_]{1,39}$' }
+        title: { type: string, maxLength: 200 }
+        description: { type: string, maxLength: 500 }
+        data_status: { $ref: '#/components/schemas/DataStatus' }
+        source: { oneOf: [ { $ref: '#/components/schemas/CatalogSource' }, { type: 'null' } ] }
+        default_reminder_offsets_days:
+          type: array
+          maxItems: 5
+          items: { type: integer, minimum: 0, maximum: 365 }
+        renewal_steps:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 300 }
+    Catalog:
+      type: object
+      additionalProperties: false
+      required: [version, business_categories, regions, features, document_types]
+      properties:
+        version: { type: string, maxLength: 80 }
+        business_categories: { type: array, items: { $ref: '#/components/schemas/BusinessCategory' } }
+        regions: { type: array, items: { $ref: '#/components/schemas/Region' } }
+        features: { type: array, items: { $ref: '#/components/schemas/Feature' } }
+        document_types: { type: array, items: { $ref: '#/components/schemas/DocumentType' } }
+    FeatureCodes:
+      type: array
+      maxItems: 20
+      uniqueItems: true
+      items: { type: string, pattern: '^[a-z][a-z0-9_]{1,39}$' }
+    OrganizationCreate:
+      type: object
+      additionalProperties: false
+      required: [id, name, business_category_code, region_code, timezone, feature_codes]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        business_category_code: { type: string, pattern: '^[a-z][a-z0-9_]{1,39}$' }
+        region_code: { type: string, pattern: '^RU-[A-Z]{2,3}$|^XX-OTHER$' }
+        timezone: { type: string, minLength: 3, maxLength: 64, description: 'IANA, например Europe/Moscow' }
+        feature_codes: { $ref: '#/components/schemas/FeatureCodes' }
+    OrganizationUpdate:
+      type: object
+      additionalProperties: false
+      required: [expected_version]
+      minProperties: 2
+      properties:
+        expected_version: { type: integer, minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        business_category_code: { type: string, pattern: '^[a-z][a-z0-9_]{1,39}$' }
+        region_code: { type: string, pattern: '^RU-[A-Z]{2,3}$|^XX-OTHER$' }
+        timezone: { type: string, minLength: 3, maxLength: 64 }
+        feature_codes: { $ref: '#/components/schemas/FeatureCodes' }
+    DocumentStats:
+      type: object
+      additionalProperties: false
+      required: [total, expired, expiring, valid, no_expiry, next_valid_until]
+      properties:
+        total: { type: integer, minimum: 0 }
+        expired: { type: integer, minimum: 0 }
+        expiring: { type: integer, minimum: 0 }
+        valid: { type: integer, minimum: 0 }
+        no_expiry: { type: integer, minimum: 0 }
+        next_valid_until: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+    Organization:
+      type: object
+      additionalProperties: false
+      required: [id, name, business_category_code, region_code, timezone, feature_codes, my_role, version, stats, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string, maxLength: 100 }
+        business_category_code: { type: string }
+        region_code: { type: string }
+        timezone: { type: string }
+        feature_codes: { $ref: '#/components/schemas/FeatureCodes' }
+        my_role: { $ref: '#/components/schemas/Role' }
+        version: { type: integer, minimum: 1 }
+        stats: { $ref: '#/components/schemas/DocumentStats' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Suggestion:
+      type: object
+      additionalProperties: false
+      required: [document_type_code, title, description, data_status]
+      properties:
+        document_type_code: { type: string }
+        title: { type: string, maxLength: 200 }
+        description: { type: string, maxLength: 500 }
+        data_status: { $ref: '#/components/schemas/DataStatus' }
+    SuggestionList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Suggestion' } }
+    ReminderOffsets:
+      type: array
+      maxItems: 5
+      uniqueItems: true
+      items: { type: integer, minimum: 0, maximum: 365 }
+      description: За сколько дней до окончания срока напоминать; 0 — в день окончания
+    NullableShortText:
+      type: [string, 'null']
+    DocumentCreate:
+      type: object
+      additionalProperties: false
+      required: [id, title]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        document_type_code: { type: [string, 'null'], pattern: '^[a-z][a-z0-9_]{1,39}$' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        number: { type: [string, 'null'], maxLength: 100 }
+        issuer: { type: [string, 'null'], maxLength: 200 }
+        responsible_label: { type: [string, 'null'], maxLength: 100, description: 'Должность или условное обозначение; ФИО и иные ПДн не вводить' }
+        notes: { type: [string, 'null'], maxLength: 2000 }
+        reference_url: { type: [string, 'null'], maxLength: 1024, pattern: '^https://' }
+        valid_from: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+        valid_until: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+        reminder_offsets_days: { $ref: '#/components/schemas/ReminderOffsets' }
+    DocumentsBatchCreate:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, minItems: 1, maxItems: 30, items: { $ref: '#/components/schemas/DocumentCreate' } }
+    DocumentsBatchResult:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 30, items: { $ref: '#/components/schemas/Document' } }
+    DocumentUpdate:
+      type: object
+      additionalProperties: false
+      required: [expected_version]
+      minProperties: 2
+      description: Отсутствующее поле не меняется; null очищает необязательное поле
+      properties:
+        expected_version: { type: integer, minimum: 1 }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        number: { type: [string, 'null'], maxLength: 100 }
+        issuer: { type: [string, 'null'], maxLength: 200 }
+        responsible_label: { type: [string, 'null'], maxLength: 100 }
+        notes: { type: [string, 'null'], maxLength: 2000 }
+        reference_url: { type: [string, 'null'], maxLength: 1024, pattern: '^https://' }
+        valid_from: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+        valid_until: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+        reminder_offsets_days: { $ref: '#/components/schemas/ReminderOffsets' }
+    RenewalCreate:
+      type: object
+      additionalProperties: false
+      required: [id, valid_from, valid_until]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        valid_from: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+        valid_until: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+    Period:
+      type: object
+      additionalProperties: false
+      required: [id, valid_from, valid_until, is_current, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        valid_from: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+        valid_until: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+        is_current: { type: boolean }
+        created_at: { type: string, format: date-time }
+    DocumentListItem:
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, document_type_code, title, responsible_label, valid_until, status, days_left, next_reminder_at, reminders_state]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        organization_id: { $ref: '#/components/schemas/Uuid' }
+        document_type_code: { type: [string, 'null'] }
+        title: { type: string, maxLength: 200 }
+        responsible_label: { type: [string, 'null'], maxLength: 100 }
+        valid_until: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
+        status: { $ref: '#/components/schemas/DeadlineStatus' }
+        days_left: { type: [integer, 'null'], description: 'valid_until − сегодня в днях; отрицательно для просроченных; null для бессрочных' }
+        next_reminder_at: { type: [string, 'null'], format: date-time, description: 'Ближайшее запланированное напоминание текущему пользователю; null, если план недоступен' }
+        reminders_state: { $ref: '#/components/schemas/RemindersState' }
+    DocumentPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/DocumentListItem' } }
+        next_cursor: { type: [string, 'null'], maxLength: 200 }
+    Document:
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, document_type_code, title, number, issuer, responsible_label, notes, reference_url, current_period, periods, status, days_left, reminder_offsets_days, next_reminder_at, reminders_state, renewal_steps, data_status, version, can_edit, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        organization_id: { $ref: '#/components/schemas/Uuid' }
+        document_type_code: { type: [string, 'null'] }
+        title: { type: string, maxLength: 200 }
+        number: { type: [string, 'null'], maxLength: 100 }
+        issuer: { type: [string, 'null'], maxLength: 200 }
+        responsible_label: { type: [string, 'null'], maxLength: 100 }
+        notes: { type: [string, 'null'], maxLength: 2000 }
+        reference_url: { type: [string, 'null'], maxLength: 1024 }
+        current_period: { $ref: '#/components/schemas/Period' }
+        periods: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/Period' }, description: 'Все периоды, новые первыми, не более 20' }
+        status: { $ref: '#/components/schemas/DeadlineStatus' }
+        days_left: { type: [integer, 'null'] }
+        reminder_offsets_days: { $ref: '#/components/schemas/ReminderOffsets' }
+        next_reminder_at: { type: [string, 'null'], format: date-time }
+        reminders_state: { $ref: '#/components/schemas/RemindersState' }
+        renewal_steps: { type: array, maxItems: 20, items: { type: string, maxLength: 300 } }
+        data_status: { oneOf: [ { $ref: '#/components/schemas/DataStatus' }, { type: 'null' } ] }
+        version: { type: integer, minimum: 1 }
+        can_edit: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Member:
+      type: object
+      additionalProperties: false
+      required: [account_id, first_name, last_name, role, joined_at, is_me]
+      properties:
+        account_id: { $ref: '#/components/schemas/Uuid' }
+        first_name: { type: string, maxLength: 128 }
+        last_name: { type: [string, 'null'], maxLength: 128 }
+        role: { $ref: '#/components/schemas/Role' }
+        joined_at: { type: string, format: date-time }
+        is_me: { type: boolean }
+    MemberList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 30, items: { $ref: '#/components/schemas/Member' } }
+    MemberRoleUpdate:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: { $ref: '#/components/schemas/InvitableRole' }
+    NotificationSettings:
+      type: object
+      additionalProperties: false
+      required: [enabled, local_time]
+      properties:
+        enabled: { type: boolean }
+        local_time: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: 'Время напоминаний в часовом поясе организации' }
+    InviteCreate:
+      type: object
+      additionalProperties: false
+      required: [id, role]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        role: { $ref: '#/components/schemas/InvitableRole' }
+    InviteCreated:
+      type: object
+      additionalProperties: false
+      required: [id, role, expires_at, link_url, share_text]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        role: { $ref: '#/components/schemas/InvitableRole' }
+        expires_at: { type: string, format: date-time }
+        link_url: { type: string, maxLength: 600, description: 'https://max.ru/<botName>?startapp=inv_<token>' }
+        share_text: { type: string, maxLength: 300 }
+    InviteSummary:
+      type: object
+      additionalProperties: false
+      required: [id, role, created_at, expires_at, created_by_first_name]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        role: { $ref: '#/components/schemas/InvitableRole' }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        created_by_first_name: { type: [string, 'null'], maxLength: 128 }
+    InviteList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/InviteSummary' } }
+    InviteTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
+    InvitePreview:
+      type: object
+      additionalProperties: false
+      required: [organization_name, role, inviter_first_name, expires_at]
+      properties:
+        organization_name: { type: string, maxLength: 100 }
+        role: { $ref: '#/components/schemas/InvitableRole' }
+        inviter_first_name: { type: [string, 'null'], maxLength: 128 }
+        expires_at: { type: string, format: date-time }
+    InviteAccepted:
+      type: object
+      additionalProperties: false
+      required: [organization_id, role]
+      properties:
+        organization_id: { $ref: '#/components/schemas/Uuid' }
+        role: { $ref: '#/components/schemas/InvitableRole' }
+    CalendarExport:
+      type: object
+      additionalProperties: false
+      required: [download_url, file_name, expires_at]
+      properties:
+        download_url: { type: string, maxLength: 300, pattern: '^https?://' }
+        file_name: { type: string, pattern: '^[a-z0-9-]{1,60}\.ics$' }
+        expires_at: { type: string, format: date-time }
+    ClientEvent:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, enum: [bootstrap_completed, bootstrap_failed, bridge_error, api_error_shown] }
+        platform: { $ref: '#/components/schemas/Platform' }
+        app_version: { type: string, maxLength: 32 }
+        duration_ms: { type: integer, minimum: 0, maximum: 120000 }
+        code: { type: string, maxLength: 64, pattern: '^[a-z0-9_.:-]{1,64}$' }
+    ClientEventBatch:
+      type: object
+      additionalProperties: false
+      required: [events]
+      properties:
+        events: { type: array, minItems: 1, maxItems: 20, items: { $ref: '#/components/schemas/ClientEvent' } }

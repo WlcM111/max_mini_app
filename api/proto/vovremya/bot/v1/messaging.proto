@@ -1,0 +1,131 @@
+// Контракт core -> bot. Версия 1.0.0. Владелец: Разработчик A.
+// Изменения только обратно совместимые (правила: docs/contracts/README.md).
+syntax = "proto3";
+
+package vovremya.bot.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "vovremya/gen/go/vovremya/bot/v1;botv1";
+
+// MessagingService — доставка сообщений пользователям MAX через бота.
+// Единственный клиент — сервис core. Все методы идемпотентны или только читают.
+service MessagingService {
+  // Поставить уведомление в очередь доставки. Идемпотентно по idempotency_key.
+  rpc EnqueueNotification(EnqueueNotificationRequest) returns (EnqueueNotificationResponse);
+  // Текущее состояние доставки уведомления.
+  rpc GetNotificationStatus(GetNotificationStatusRequest) returns (GetNotificationStatusResponse);
+  // Может ли пользователь получать сообщения бота (по событиям MAX и результатам доставки).
+  rpc GetRecipientStatus(GetRecipientStatusRequest) returns (GetRecipientStatusResponse);
+  // Профиль бота и шаблон диплинка мини-приложения.
+  rpc GetBotProfile(GetBotProfileRequest) returns (GetBotProfileResponse);
+}
+
+enum NotificationKind {
+  NOTIFICATION_KIND_UNSPECIFIED = 0;
+  NOTIFICATION_KIND_REMINDER = 1;
+  NOTIFICATION_KIND_MEMBER_JOINED = 2;
+}
+
+enum NotificationStatus {
+  NOTIFICATION_STATUS_UNSPECIFIED = 0;
+  NOTIFICATION_STATUS_QUEUED = 1;
+  NOTIFICATION_STATUS_SENDING = 2;
+  NOTIFICATION_STATUS_SENT = 3;
+  NOTIFICATION_STATUS_RETRY_WAIT = 4;
+  NOTIFICATION_STATUS_FAILED = 5;
+  NOTIFICATION_STATUS_EXPIRED = 6;
+}
+
+enum RecipientState {
+  RECIPIENT_STATE_UNSPECIFIED = 0;
+  RECIPIENT_STATE_UNKNOWN = 1;
+  RECIPIENT_STATE_ACTIVE = 2;
+  RECIPIENT_STATE_MUTED = 3;
+  RECIPIENT_STATE_STOPPED = 4;
+  RECIPIENT_STATE_UNREACHABLE = 5;
+}
+
+enum BotMode {
+  BOT_MODE_UNSPECIFIED = 0;
+  BOT_MODE_STUB = 1;
+  BOT_MODE_LIVE = 2;
+}
+
+// Кнопка под сообщением. Каждая кнопка — отдельный ряд клавиатуры (не более 3).
+message Button {
+  // 1..64 символа.
+  string text = 1;
+  oneof action {
+    // Payload диплинка мини-приложения: ^[A-Za-z0-9_-]{0,512}$ (ограничение MAX).
+    string open_app_payload = 2;
+    // Внешняя ссылка https://, не длиннее 2048 символов (ограничение MAX для link).
+    string url = 3;
+  }
+}
+
+message EnqueueNotificationRequest {
+  // 8..200 символов, ^[a-z0-9:_-]+$. Повтор с тем же ключом и тем же содержимым возвращает duplicate=true.
+  string idempotency_key = 1;
+  NotificationKind kind = 2;
+  // ID пользователя MAX (user.id из данных запуска).
+  int64 recipient_max_user_id = 3;
+  // Обычный текст сообщения, 1..4000 символов. Разметка не применяется:
+  // параметр format в POST /messages не передаётся (max-integration-spec §8).
+  string text = 4;
+  // 0..3 кнопки.
+  repeated Button buttons = 5;
+  // true — без push-уведомления (notify=false в POST /messages).
+  bool silent = 6;
+  // После этого момента сообщение не отправляется (статус EXPIRED). Обязательно, не позже чем через 7 суток.
+  google.protobuf.Timestamp not_after = 7;
+}
+
+message EnqueueNotificationResponse {
+  // UUID сообщения в очереди bot.
+  string notification_id = 1;
+  NotificationStatus status = 2;
+  // true — сообщение с этим ключом уже было поставлено ранее.
+  bool duplicate = 3;
+}
+
+message GetNotificationStatusRequest {
+  string idempotency_key = 1;
+}
+
+message GetNotificationStatusResponse {
+  string notification_id = 1;
+  NotificationStatus status = 2;
+  int32 attempts = 3;
+  // Заполнено для SENT.
+  google.protobuf.Timestamp sent_at = 4;
+  // Пусто или код ошибки: max_4xx, max_401, max_429, max_5xx, timeout, network,
+  // recipient_unreachable, recipient_stopped, expired.
+  string last_error_code = 5;
+}
+
+message GetRecipientStatusRequest {
+  int64 max_user_id = 1;
+}
+
+message GetRecipientStatusResponse {
+  RecipientState state = 1;
+  // Момент последнего изменения состояния; не заполнено для UNKNOWN.
+  google.protobuf.Timestamp state_changed_at = 2;
+  // https://max.ru/<botName> — ссылка на чат с ботом.
+  string bot_chat_url = 3;
+}
+
+message GetBotProfileRequest {}
+
+message GetBotProfileResponse {
+  // Ник бота из GET /me (без @).
+  string username = 1;
+  // Отображаемое имя бота из GET /me.
+  string display_name = 2;
+  // https://max.ru/<username>
+  string chat_url = 3;
+  // Шаблон с подстановкой {payload}: https://max.ru/<username>?startapp={payload}
+  string open_app_link_template = 4;
+  BotMode mode = 5;
+}

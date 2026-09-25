@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1
+# Тестовый двойник bot-service для автономной проверки reminders-service.
+# Только для dev/test окружения: в production-конфигурации не используется.
+ARG GO_VERSION=1.27
+FROM golang:${GO_VERSION}-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY gen ./gen
+COPY internal ./internal
+COPY services/reminders ./services/reminders
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/botdouble ./services/reminders/test/botdouble
+
+FROM alpine:3.22 AS runtime
+RUN adduser -D -u 10001 app
+WORKDIR /app
+COPY --from=build /out/botdouble /app/botdouble
+USER app
+EXPOSE 9090 8090
+ENTRYPOINT ["/app/botdouble"]

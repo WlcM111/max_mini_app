@@ -1,0 +1,90 @@
+{
+  "generated_at": "2026-09-20",
+  "architecture_version": "2.0.0",
+  "inputs": [
+    {
+      "relative_path": "ARCHITECTURE_TZ.md",
+      "size_bytes": 27708,
+      "sha256": "2355b3ab5d942d66c1d2d0a1b5d96fe751e915b10f271201cc412747072e28e1",
+      "format": "markdown",
+      "inspection_method": "полное чтение",
+      "inspection_status": "изучен полностью",
+      "notes": ""
+    },
+    {
+      "relative_path": "SHA256SUMS.txt",
+      "size_bytes": 520,
+      "sha256": "8cb08c4f168efd955e63df427fe714111168d317df285ba567b216973b495011",
+      "format": "text",
+      "inspection_method": "полное чтение",
+      "inspection_status": "изучен полностью",
+      "notes": ""
+    },
+    {
+      "relative_path": "handoff-bot.zip",
+      "size_bytes": 225670,
+      "sha256": "a5c806310f8aeac5a31b74a43bc0555b554a3bbe13fee861b4a1ea3a3421c0b2",
+      "format": "zip",
+      "inspection_method": "распаковка и чтение всех файлов",
+      "inspection_status": "изучен полностью",
+      "notes": ""
+    },
+    {
+      "relative_path": "handoff-core.zip",
+      "size_bytes": 226964,
+      "sha256": "d99025ddfdcba4ff4c1eb1f4d45068a24b0ab5f67bf75bc48f929802ce3538d8",
+      "format": "zip",
+      "inspection_method": "распаковка и чтение всех файлов",
+      "inspection_status": "изучен полностью",
+      "notes": ""
+    },
+    {
+      "relative_path": "handoff-frontend.zip",
+      "size_bytes": 226147,
+      "sha256": "17bcf4cf17d7bcad2aaf1cd9ab171098f81d9c4487fcf4488e46f27483b0fe37",
+      "format": "zip",
+      "inspection_method": "распаковка и чтение всех файлов",
+      "inspection_status": "изучен полностью",
+      "notes": ""
+    },
+    {
+      "relative_path": "handoff-infra.zip",
+      "size_bytes": 233696,
+      "sha256": "69028a45dd643d09072d9a36fe4ab085a455827ef73bf2e209c5ef1c49707a19",
+      "format": "zip",
+      "inspection_method": "распаковка и чтение всех файлов",
+      "inspection_status": "изучен полностью",
+      "notes": ""
+    },
+    {
+      "relative_path": "handoff-max.zip",
+      "size_bytes": 99880,
+      "sha256": "e311be9ed21655b24e5e0a373265f2446c9f48254e7f6ea35d75c0e03054c4c2",
+      "format": "zip",
+      "inspection_method": "распаковка и чтение всех файлов",
+      "inspection_status": "изучен полностью",
+      "notes": ""
+    },
+    {
+      "relative_path": "vovremya-architecture-tz-v1_0_0.zip",
+      "size_bytes": 237239,
+      "sha256": "9e357320141a24c0c5c2db2920775a16f2c4195df8fb438fc467971e8f4778cb",
+      "format": "zip",
+      "inspection_method": "распаковка и чтение всех файлов",
+      "inspection_status": "изучен полностью",
+      "notes": ""
+    },
+    {
+      "relative_path": "Эффективныи__бизнес__1_.pdf",
+      "size_bytes": 1892114,
+      "sha256": "28be9b3d623469ae11c93b821a1cd294ceb6ba5932db04232fa5cec80608e8ca",
+      "format": "pdf",
+      "inspection_method": "постраничное чтение",
+      "inspection_status": "изучен полностью",
+      "notes": ""
+    }
+  ],
+  "input_archives_unique_files": 91,
+  "archives_content_conflicts": 0,
+  "unreadable_or_corrupted": []
+}

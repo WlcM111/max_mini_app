@@ -1,0 +1,175 @@
+// Контракт core-service -> reminders-service: надёжная передача изменений предметных
+// агрегатов core, от которых зависит план напоминаний. Версия 1.0.0.
+// Доставка: at-least-once; обработка: идемпотентная по event_id; порядок: по
+// (aggregate_type, aggregate_id, aggregate_version), устаревшие события отбрасываются.
+syntax = "proto3";
+
+package vovremya.reminders.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "vovremya/gen/go/vovremya/reminders/v1;remindersv1";
+
+// IngestService принимает события изменений от core-service.
+// Единственный клиент — relay сервиса core (outbox).
+service IngestService {
+  // Применить пакет событий. Идемпотентно по Event.event_id.
+  // Пакет не атомарен: каждое событие применяется в собственной транзакции,
+  // результат по каждому событию возвращается отдельно.
+  rpc ApplyEvents(ApplyEventsRequest) returns (ApplyEventsResponse);
+  // Текущее состояние приёма по агрегатам: применённая версия проекции.
+  // Используется relay для обнаружения рассогласования и повторной отправки снимка.
+  rpc GetIngestState(GetIngestStateRequest) returns (GetIngestStateResponse);
+}
+
+enum AggregateType {
+  AGGREGATE_TYPE_UNSPECIFIED = 0;
+  AGGREGATE_TYPE_ORGANIZATION = 1;
+  AGGREGATE_TYPE_MEMBERSHIP = 2;
+  AGGREGATE_TYPE_DOCUMENT = 3;
+  AGGREGATE_TYPE_ACCOUNT = 4;
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  // Полное состояние организации (создание и любое изменение имени/пояса).
+  EVENT_TYPE_ORGANIZATION_STATE = 1;
+  EVENT_TYPE_ORGANIZATION_DELETED = 2;
+  // Полное состояние участия (роль в план не входит; входят настройки уведомлений).
+  EVENT_TYPE_MEMBERSHIP_STATE = 3;
+  EVENT_TYPE_MEMBERSHIP_REMOVED = 4;
+  // Полное состояние документа с текущим периодом и отступами напоминаний.
+  EVENT_TYPE_DOCUMENT_STATE = 5;
+  EVENT_TYPE_DOCUMENT_DELETED = 6;
+  // Удаление аккаунта: отменяет напоминания получателя во всех организациях.
+  EVENT_TYPE_ACCOUNT_DELETED = 7;
+}
+
+// Тип аккаунта определяет, может ли участник получать сообщения бота.
+enum AccountKind {
+  ACCOUNT_KIND_UNSPECIFIED = 0;
+  ACCOUNT_KIND_MAX = 1;    // пользователь MAX, есть max_user_id
+  ACCOUNT_KIND_REVIEW = 2; // служебный аккаунт проверяющего, сообщения не отправляются
+}
+
+// Состояние организации. Источник истины — core.organizations.
+message OrganizationState {
+  string organization_id = 1; // UUID v4
+  string name = 2;            // 1..100 символов, используется в тексте напоминания
+  string timezone = 3;        // IANA, например Europe/Moscow
+}
+
+// Состояние участия. Источник истины — core.memberships.
+message MembershipState {
+  string organization_id = 1;     // UUID v4
+  string account_id = 2;          // UUID v4
+  AccountKind account_kind = 3;
+  int64 max_user_id = 4;          // 0 для kind=review
+  bool notify_enabled = 5;
+  // Локальное время напоминаний в минутах от полуночи, 0..1439, кратно 1 минуте.
+  uint32 notify_local_minutes = 6;
+}
+
+// Период действия документа. Отсутствие valid_until означает бессрочный документ.
+message DocumentPeriod {
+  string period_id = 1;   // UUID v4 текущего периода
+  string valid_from = 2;  // YYYY-MM-DD или пусто
+  string valid_until = 3; // YYYY-MM-DD или пусто (бессрочный)
+}
+
+// Состояние документа. Источник истины — core.documents и core.document_periods.
+message DocumentState {
+  string document_id = 1;     // UUID v4
+  string organization_id = 2; // UUID v4
+  string title = 3;           // 1..200 символов, используется в тексте напоминания
+  DocumentPeriod current_period = 4;
+  // Отступы напоминаний в днях: 0..365, не более 5, без повторов.
+  repeated uint32 reminder_offsets_days = 5;
+}
+
+message OrganizationDeleted { string organization_id = 1; }
+
+message MembershipRemoved {
+  string organization_id = 1;
+  string account_id = 2;
+}
+
+message DocumentDeleted {
+  string document_id = 1;
+  string organization_id = 2;
+}
+
+message AccountDeleted { string account_id = 1; }
+
+// Событие изменения. Конверт одинаков для всех типов; payload строго типизирован.
+message Event {
+  string event_id = 1;         // UUID v4, ключ дедупликации, уникален глобально
+  EventType type = 2;
+  uint32 schema_version = 3;   // версия схемы payload, текущая — 1
+  string source_service = 4;   // "core"
+  AggregateType aggregate_type = 5;
+  string aggregate_id = 6;     // UUID агрегата; для MEMBERSHIP — "<org_uuid>:<account_uuid>"
+  // Монотонная версия агрегата в сервисе-источнике. События с версией не больше
+  // уже применённой отбрасываются как устаревшие (STALE).
+  uint64 aggregate_version = 7;
+  google.protobuf.Timestamp occurred_at = 8;
+  // true — событие сформировано процедурой сверки (полный снимок состояния).
+  bool snapshot = 9;
+
+  oneof payload {
+    OrganizationState organization_state = 20;
+    OrganizationDeleted organization_deleted = 21;
+    MembershipState membership_state = 22;
+    MembershipRemoved membership_removed = 23;
+    DocumentState document_state = 24;
+    DocumentDeleted document_deleted = 25;
+    AccountDeleted account_deleted = 26;
+  }
+}
+
+message ApplyEventsRequest {
+  // 1..200 событий. Порядок в пакете сохраняется при обработке.
+  repeated Event events = 1;
+  // Идентификатор пакета для журналирования; на семантику не влияет.
+  string batch_id = 2;
+}
+
+enum EventOutcome {
+  EVENT_OUTCOME_UNSPECIFIED = 0;
+  EVENT_OUTCOME_APPLIED = 1;   // применено, проекция и план обновлены
+  EVENT_OUTCOME_DUPLICATE = 2; // event_id уже обработан ранее, повторных действий нет
+  EVENT_OUTCOME_STALE = 3;     // версия агрегата не новее применённой, изменений нет
+  EVENT_OUTCOME_REJECTED = 4;  // событие некорректно и не будет принято при повторе
+}
+
+message EventResult {
+  string event_id = 1;
+  EventOutcome outcome = 2;
+  // Версия агрегата, применённая в проекции после обработки события.
+  uint64 applied_version = 3;
+  // Причина для REJECTED; для прочих исходов пусто.
+  string message = 4;
+}
+
+message ApplyEventsResponse { repeated EventResult results = 1; }
+
+message GetIngestStateRequest {
+  // 1..500 агрегатов.
+  repeated AggregateRef aggregates = 1;
+}
+
+message AggregateRef {
+  AggregateType aggregate_type = 1;
+  string aggregate_id = 2;
+}
+
+message AggregateState {
+  AggregateType aggregate_type = 1;
+  string aggregate_id = 2;
+  // 0 — агрегат неизвестен сервису (события не применялись или проекция удалена).
+  uint64 applied_version = 3;
+  google.protobuf.Timestamp applied_at = 4;
+  bool deleted = 5;
+}
+
+message GetIngestStateResponse { repeated AggregateState aggregates = 1; }

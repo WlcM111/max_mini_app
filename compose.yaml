@@ -1,0 +1,316 @@
+# Vovremya — все локальные компоненты. Запуск: docker compose up -d --build
+# Значения по умолчанию — только для локального режима (префикс devonly_).
+# В APP_ENV=prod сервисы отказываются стартовать с devonly_-секретами.
+name: vovremya
+
+x-go-common: &go-common
+  APP_ENV: ${APP_ENV:-local}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+
+x-core-build: &core-build
+  context: .
+  dockerfile: services/core/Dockerfile
+  args:
+    VERSION: ${APP_VERSION:-dev}
+
+x-bot-build: &bot-build
+  context: .
+  dockerfile: services/bot/Dockerfile
+  args:
+    VERSION: ${APP_VERSION:-dev}
+
+x-reminders-build: &reminders-build
+  context: .
+  dockerfile: services/reminders/Dockerfile
+  args:
+    VERSION: ${APP_VERSION:-dev}
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vovremya
+      POSTGRES_USER: vovremya_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devonly_pg_admin}
+      PG_CORE_MIGRATOR_PASSWORD: ${PG_CORE_MIGRATOR_PASSWORD:-devonly_core_migrator}
+      PG_CORE_APP_PASSWORD: ${PG_CORE_APP_PASSWORD:-devonly_core_app}
+      PG_BOT_MIGRATOR_PASSWORD: ${PG_BOT_MIGRATOR_PASSWORD:-devonly_bot_migrator}
+      PG_BOT_APP_PASSWORD: ${PG_BOT_APP_PASSWORD:-devonly_bot_app}
+      PG_REMINDERS_MIGRATOR_PASSWORD: ${PG_REMINDERS_MIGRATOR_PASSWORD:-devonly_reminders_migrator}
+      PG_REMINDERS_APP_PASSWORD: ${PG_REMINDERS_APP_PASSWORD:-devonly_reminders_app}
+    command: ["postgres", "-c", "max_connections=100", "-c", "shared_buffers=256MB", "-c", "log_min_duration_statement=500"]
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Проверка по TCP: во время выполнения init-скриптов временный сервер
+      # слушает только сокет, поэтому по TCP «здоров» = инициализация завершена.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U vovremya_admin -d vovremya"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [data]
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 1g }
+
+  core-migrate:
+    build: *core-build
+    # Собственный тег: две цели сборки не могут одновременно выгружать один образ.
+    image: vovremya/core-migrate:${APP_VERSION:-dev}
+    command: ["migrate", "up"]
+    environment:
+      <<: *go-common
+      CORE_MIGRATE_DATABASE_URL: postgres://core_migrator:${PG_CORE_MIGRATOR_PASSWORD:-devonly_core_migrator}@postgres:5432/vovremya?sslmode=disable
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data]
+    restart: "no"
+
+  bot-migrate:
+    build: *bot-build
+    # Собственный тег: две цели сборки не могут одновременно выгружать один образ.
+    image: vovremya/bot-migrate:${APP_VERSION:-dev}
+    command: ["migrate", "up"]
+    environment:
+      <<: *go-common
+      BOT_MIGRATE_DATABASE_URL: postgres://bot_migrator:${PG_BOT_MIGRATOR_PASSWORD:-devonly_bot_migrator}@postgres:5432/vovremya?sslmode=disable
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data]
+    restart: "no"
+
+  reminders-migrate:
+    build: *reminders-build
+    # Собственный тег: две цели сборки не могут одновременно выгружать один образ.
+    image: vovremya/reminders-migrate:${APP_VERSION:-dev}
+    command: ["migrate", "up"]
+    environment:
+      <<: *go-common
+      REMINDERS_DATABASE_URL: postgres://reminders_migrator:${PG_REMINDERS_MIGRATOR_PASSWORD:-devonly_reminders_migrator}@postgres:5432/vovremya?sslmode=disable
+      REMINDERS_MIGRATE_DATABASE_URL: postgres://reminders_migrator:${PG_REMINDERS_MIGRATOR_PASSWORD:-devonly_reminders_migrator}@postgres:5432/vovremya?sslmode=disable
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data]
+    restart: "no"
+
+  bot:
+    build: *bot-build
+    image: vovremya/bot:${APP_VERSION:-dev}
+    command: ["serve"]
+    restart: unless-stopped
+    environment:
+      <<: *go-common
+      BOT_MODE: ${BOT_MODE:-stub}
+      BOT_HTTP_ADDR: ":8080"
+      BOT_ADMIN_ADDR: ":8081"
+      BOT_GRPC_ADDR: "10.77.2.10:9090"
+      BOT_DATABASE_URL: postgres://bot_app:${PG_BOT_APP_PASSWORD:-devonly_bot_app}@postgres:5432/vovremya?sslmode=disable
+      BOT_MAX_API_BASE_URL: ${BOT_MAX_API_BASE_URL:-https://platform-api2.max.ru}
+      BOT_MAX_TOKEN: ${MAX_BOT_TOKEN:-}
+      BOT_MAX_EXTRA_CA_FILE: /etc/vovremya/ca/russian_trusted_ca_bundle.pem
+      BOT_WEBHOOK_PUBLIC_URL: ${BOT_WEBHOOK_PUBLIC_URL:-}
+      BOT_WEBHOOK_SECRET: ${BOT_WEBHOOK_SECRET:-devonly-webhook-secret}
+      BOT_STUB_USERNAME: ${BOT_STUB_USERNAME:-vovremya_local_bot}
+      BOT_OPEN_APP_BUTTON_KIND: ${BOT_OPEN_APP_BUTTON_KIND:-link}
+      BOT_GLOBAL_RPS: ${BOT_GLOBAL_RPS:-20}
+    depends_on:
+      bot-migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "/app/bot", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    networks:
+      edge: {}
+      data:
+        ipv4_address: 10.77.2.10
+        aliases: [bot-grpc]
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128m }
+
+  core:
+    build: *core-build
+    image: vovremya/core:${APP_VERSION:-dev}
+    command: ["serve"]
+    restart: unless-stopped
+    environment:
+      <<: *go-common
+      CORE_HTTP_ADDR: ":8080"
+      CORE_ADMIN_ADDR: ":8081"
+      CORE_DATABASE_URL: postgres://core_app:${PG_CORE_APP_PASSWORD:-devonly_core_app}@postgres:5432/vovremya?sslmode=disable
+      CORE_MAX_WEBAPP_SECRET_HEX: ${CORE_MAX_WEBAPP_SECRET_HEX:-e45f53166d1da778700f29abbf89f6ac247864cb97356f927707e56f0066d663}
+      CORE_BOT_GRPC_ADDR: bot-grpc:9090
+      CORE_REMINDERS_GRPC_ADDR: reminders:9091
+      CORE_REMINDERS_RPC_TIMEOUT: ${CORE_REMINDERS_RPC_TIMEOUT:-2s}
+      CORE_REMINDERS_SYNC_FLUSH_TIMEOUT: ${CORE_REMINDERS_SYNC_FLUSH_TIMEOUT:-300ms}
+      CORE_PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      CORE_TRUSTED_PROXY_CIDRS: 10.77.1.0/24
+      CORE_BOT_RPC_TIMEOUT: ${CORE_BOT_RPC_TIMEOUT:-2s}
+      CORE_BOT_PROFILE_CACHE_TTL: ${CORE_BOT_PROFILE_CACHE_TTL:-10m}
+      CORE_LAUNCH_MAX_AGE: ${CORE_LAUNCH_MAX_AGE:-1h}
+      CORE_SESSION_TTL: ${CORE_SESSION_TTL:-12h}
+      CORE_INVITE_TTL: ${CORE_INVITE_TTL:-72h}
+      CORE_EXPORT_TTL: ${CORE_EXPORT_TTL:-10m}
+      CORE_DB_MAX_CONNS: ${CORE_DB_MAX_CONNS:-20}
+      CORE_OUTBOX_BATCH: ${CORE_OUTBOX_BATCH:-100}
+      CORE_RELAY_INTERVAL: ${CORE_RELAY_INTERVAL:-2s}
+      CORE_RETENTION_INTERVAL: ${CORE_RETENTION_INTERVAL:-1h}
+    depends_on:
+      core-migrate: { condition: service_completed_successfully }
+      bot: { condition: service_healthy }
+      reminders: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "/app/core", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    networks:
+      edge: {}
+      data:
+        ipv4_address: 10.77.2.20
+        aliases: [core-api]
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 256m }
+
+  # reminders-service: приём изменений из core, план напоминаний, планировщик.
+  reminders:
+    build: *reminders-build
+    image: vovremya/reminders:${APP_VERSION:-dev}
+    command: ["serve"]
+    environment:
+      <<: *go-common
+      APP_VERSION: ${APP_VERSION:-dev}
+      REMINDERS_DATABASE_URL: postgres://reminders_app:${PG_REMINDERS_APP_PASSWORD:-devonly_reminders_app}@postgres:5432/vovremya?sslmode=disable
+      REMINDERS_GRPC_ADDR: ":9091"
+      REMINDERS_ADMIN_ADDR: ":8081"
+      REMINDERS_BOT_GRPC_ADDR: bot-grpc:9090
+      REMINDERS_SCHEDULER_INTERVAL: ${REMINDERS_SCHEDULER_INTERVAL:-15s}
+      REMINDERS_SCHEDULER_BATCH: ${REMINDERS_SCHEDULER_BATCH:-200}
+      REMINDERS_SCHEDULER_LEASE: ${REMINDERS_SCHEDULER_LEASE:-2m}
+      REMINDERS_GRACE: ${REMINDERS_GRACE:-24h}
+    depends_on:
+      postgres: { condition: service_healthy }
+      reminders-migrate: { condition: service_completed_successfully }
+      bot: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "/app/reminders", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks: [data]
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }
+
+  edge:
+    build:
+      context: .
+      # Образ собирает Mini App (frontend/) и отдаёт его как статику,
+      # проксируя /api/v1 в core и /max/webhook в bot.
+      dockerfile: deploy/edge/Dockerfile
+      args:
+        VITE_MOCK_BRIDGE: ${VITE_MOCK_BRIDGE:-false}
+        VITE_APP_VERSION: ${APP_VERSION:-dev}
+    image: vovremya/edge:${APP_VERSION:-dev}
+    restart: unless-stopped
+    ports:
+      - "${EDGE_HTTP_PORT:-8080}:80"
+      - "${EDGE_HTTPS_PORT:-8443}:443"
+    environment:
+      EDGE_SITE_ADDRESS: ${EDGE_SITE_ADDRESS:-:80}
+      ACME_EMAIL: ${ACME_EMAIL:-devonly@localhost}
+      EDGE_FRAME_ANCESTORS: ${EDGE_FRAME_ANCESTORS:-'self' https://max.ru https://*.max.ru}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      core: { condition: service_healthy }
+      bot: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8088/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    networks: [edge]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128m }
+
+  prometheus:
+    profiles: ["monitoring"]
+    image: prom/prometheus:v3.5.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=7d"]
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9091:9090"
+    networks: [data]
+
+  postgres-test:
+    profiles: ["test"]
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: vovremya
+      POSTGRES_USER: vovremya_admin
+      POSTGRES_PASSWORD: devonly_pg_admin
+      PG_CORE_MIGRATOR_PASSWORD: devonly_core_migrator
+      PG_CORE_APP_PASSWORD: devonly_core_app
+      PG_BOT_MIGRATOR_PASSWORD: devonly_bot_migrator
+      PG_BOT_APP_PASSWORD: devonly_bot_app
+      # Без паролей ролей reminders init-скрипт (set -eu) прерывается и база
+      # тестов остаётся без ролей и схем — исправление дефекта D-6 этапа 2.
+      PG_REMINDERS_MIGRATOR_PASSWORD: devonly_reminders_migrator
+      PG_REMINDERS_APP_PASSWORD: devonly_reminders_app
+    volumes:
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    tmpfs:
+      - /var/lib/postgresql
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      # Проверка по TCP: во время выполнения init-скриптов временный сервер
+      # слушает только сокет, поэтому по TCP «здоров» = инициализация завершена.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U vovremya_admin -d vovremya"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  k6:
+    profiles: ["loadtest"]
+    image: grafana/k6:1.3.0
+    volumes:
+      - ./tests/load:/scripts:ro
+    environment:
+      K6_BASE_URL: http://edge:80/api/v1
+      K6_BOT_TOKEN: devonly-local-bot-token
+    networks: [edge]
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 10.77.1.0/24
+  data:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.77.2.0/24
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+  prometheus_data:

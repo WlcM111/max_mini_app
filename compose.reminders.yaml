@@ -1,0 +1,98 @@
+# Автономный запуск reminders-service: собственная PostgreSQL, миграции,
+# сервис и контролируемый двойник bot-service.
+# Запуск:  docker compose -f compose.reminders.yaml --env-file .env.reminders up -d --build
+# Проверка: docker compose -f compose.reminders.yaml ps
+name: vovremya-reminders
+
+x-reminders-build: &reminders-build
+  context: .
+  dockerfile: services/reminders/Dockerfile
+  args:
+    GO_VERSION: "1.27"
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${PG_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD:?required}
+      POSTGRES_DB: ${PG_DATABASE:-vovremya}
+      PG_REMINDERS_MIGRATOR_PASSWORD: ${PG_REMINDERS_MIGRATOR_PASSWORD:?required}
+      PG_REMINDERS_APP_PASSWORD: ${PG_REMINDERS_APP_PASSWORD:?required}
+    volumes:
+      - ./deploy/postgres/init-reminders:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_SUPERUSER:-postgres} -d ${PG_DATABASE:-vovremya}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks: [svc]
+    restart: unless-stopped
+
+  reminders-migrate:
+    build: *reminders-build
+    command: ["migrate", "up"]
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      REMINDERS_DATABASE_URL: postgres://reminders_migrator:${PG_REMINDERS_MIGRATOR_PASSWORD}@postgres:5432/${PG_DATABASE:-vovremya}?sslmode=disable
+      REMINDERS_MIGRATE_DATABASE_URL: postgres://reminders_migrator:${PG_REMINDERS_MIGRATOR_PASSWORD}@postgres:5432/${PG_DATABASE:-vovremya}?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [svc]
+    restart: "no"
+
+  botdouble:
+    build:
+      context: .
+      dockerfile: services/reminders/Dockerfile.botdouble
+    environment:
+      BOTDOUBLE_GRPC_ADDR: ":9090"
+      BOTDOUBLE_ADMIN_ADDR: ":8090"
+    ports:
+      - "127.0.0.1:8090:8090"
+    networks: [svc]
+    restart: unless-stopped
+
+  reminders:
+    build: *reminders-build
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_VERSION: ${APP_VERSION:-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      REMINDERS_DATABASE_URL: postgres://reminders_app:${PG_REMINDERS_APP_PASSWORD}@postgres:5432/${PG_DATABASE:-vovremya}?sslmode=disable
+      REMINDERS_GRPC_ADDR: ":9091"
+      REMINDERS_ADMIN_ADDR: ":8081"
+      REMINDERS_BOT_GRPC_ADDR: botdouble:9090
+      REMINDERS_SCHEDULER_INTERVAL: ${REMINDERS_SCHEDULER_INTERVAL:-15s}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      reminders-migrate:
+        condition: service_completed_successfully
+      botdouble:
+        condition: service_started
+    ports:
+      - "127.0.0.1:9091:9091"
+      - "127.0.0.1:8081:8081"
+    healthcheck:
+      test: ["CMD", "/app/reminders", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    networks: [svc]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+networks:
+  svc:
+    driver: bridge
+
+volumes:
+  pgdata:

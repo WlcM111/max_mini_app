@@ -1,0 +1,10 @@
+{
+  "update_type": "dialog_muted",
+  "timestamp": 1790000200000,
+  "chat_id": 777001,
+  "user": {
+    "user_id": 1001,
+    "first_name": "Тест",
+    "is_bot": false
+  }
+}
