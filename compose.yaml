@@ -77,6 +77,9 @@ services:
     command: ["migrate", "up"]
     environment:
       <<: *go-common
+      # Режим канала проверяется до выполнения команды migrate: в APP_ENV=prod
+      # допустим только live, поэтому переменную нужно передать и сюда.
+      BOT_MODE: ${BOT_MODE:-stub}
       BOT_MIGRATE_DATABASE_URL: postgres://bot_migrator:${PG_BOT_MIGRATOR_PASSWORD:-devonly_bot_migrator}@postgres:5432/vovremya?sslmode=disable
     depends_on:
       postgres: { condition: service_healthy }
