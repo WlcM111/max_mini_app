@@ -28,27 +28,29 @@ type Server struct {
 	cfg config.Config
 	log *slog.Logger
 
-	inflight       chan struct{}
-	accountLimiter *keyedLimiter
-	sessionByUser  *windowLimiter
-	sessionByIP    *windowLimiter
-	inviteLimiter  *windowLimiter
-	eventsLimiter  *windowLimiter
-	trusted        []*net.IPNet
+	inflight         chan struct{}
+	accountLimiter   *keyedLimiter
+	sessionByUser    *windowLimiter
+	sessionByIP      *windowLimiter
+	inviteLimiter    *windowLimiter
+	eventsLimiter    *windowLimiter
+	assistantLimiter *windowLimiter
+	trusted          []*net.IPNet
 }
 
 // New создаёт HTTP-адаптер.
 func New(a *app.App, cfg config.Config, log *slog.Logger) *Server {
 	s := &Server{
-		app:            a,
-		cfg:            cfg,
-		log:            log,
-		inflight:       make(chan struct{}, cfg.HTTPMaxInflight),
-		accountLimiter: newKeyedLimiter(cfg.RateAccountRPS, cfg.RateAccountBurst),
-		sessionByUser:  newWindowLimiter(cfg.RateSessionPerUser),
-		sessionByIP:    newWindowLimiter(cfg.RateSessionPerIP),
-		inviteLimiter:  newWindowLimiter(cfg.RateInvitePerMinute),
-		eventsLimiter:  newWindowLimiter(cfg.RateEventsPerMinute),
+		app:              a,
+		cfg:              cfg,
+		log:              log,
+		inflight:         make(chan struct{}, cfg.HTTPMaxInflight),
+		accountLimiter:   newKeyedLimiter(cfg.RateAccountRPS, cfg.RateAccountBurst),
+		sessionByUser:    newWindowLimiter(cfg.RateSessionPerUser),
+		sessionByIP:      newWindowLimiter(cfg.RateSessionPerIP),
+		inviteLimiter:    newWindowLimiter(cfg.RateInvitePerMinute),
+		eventsLimiter:    newWindowLimiter(cfg.RateEventsPerMinute),
+		assistantLimiter: newWindowLimiter(cfg.RateAssistantPerMin),
 	}
 	for _, cidr := range cfg.TrustedProxyCIDRs {
 		if _, network, err := net.ParseCIDR(strings.TrimSpace(cidr)); err == nil {

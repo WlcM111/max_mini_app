@@ -226,3 +226,45 @@ type RemindersGateway interface {
 	GetNextReminders(ctx context.Context, accountPublicID string, documentIDs []string) ([]NextReminder, error)
 	GetSyncStatus(ctx context.Context, aggregateType, aggregateID string, expectedVersion int64) (bool, error)
 }
+
+// AssistantOption — элемент закрытого списка, из которого ассистент выбирает код.
+type AssistantOption struct {
+	Code  string
+	Title string
+	Hint  string
+}
+
+// AssistantCatalog — справочные списки, передаваемые ассистенту. Модель выбирает
+// значения только из них: коды вне списка отбрасываются сценарием (ADR-032).
+type AssistantCatalog struct {
+	DocumentTypes []AssistantOption
+	Categories    []AssistantOption
+	Features      []AssistantOption
+}
+
+// DocumentDraft — распознанные реквизиты документа. Пустая строка означает,
+// что значение в тексте не найдено; даты — YYYY-MM-DD.
+type DocumentDraft struct {
+	Title            string
+	Number           string
+	Issuer           string
+	ValidFrom        string
+	ValidUntil       string
+	DocumentTypeCode string
+	Confidence       float64
+}
+
+// ProfileMatch — профиль организации, распознанный по свободному описанию.
+type ProfileMatch struct {
+	BusinessCategoryCode string
+	FeatureCodes         []string
+	Confidence           float64
+}
+
+// DraftAssistant — внешний языковой сервис (GigaChat). Используется только для
+// извлечения данных из текста пользователя и выбора кодов справочника; в
+// критический путь напоминаний и статусов не входит (ADR-032).
+type DraftAssistant interface {
+	DraftDocument(ctx context.Context, text string, catalog AssistantCatalog) (DocumentDraft, error)
+	MatchProfile(ctx context.Context, description string, catalog AssistantCatalog) (ProfileMatch, error)
+}

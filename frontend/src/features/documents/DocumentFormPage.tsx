@@ -15,7 +15,8 @@ import { scanCode } from '../../platform/max/codeReader';
 import { getBridge } from '../../platform/max/bridge';
 import { haptic } from '../../platform/max/haptics';
 import { getCatalog } from '../organizations/api';
-import { createDocument, getDocument, updateDocument } from './api';
+import { useSession } from '../../session/useSession';
+import { createDocument, draftDocument, getDocument, updateDocument } from './api';
 import {
   emptyDocumentForm,
   formFromDocument,
@@ -50,6 +51,8 @@ export function DocumentFormPage({ mode }: Props) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [canScan, setCanScan] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [assistantText, setAssistantText] = useState('');
+  const { me } = useSession();
 
   const catalog = useQuery({ queryKey: queryKeys.catalog(), queryFn: getCatalog, staleTime: Infinity });
   const existing = useQuery({
@@ -80,6 +83,32 @@ export function DocumentFormPage({ mode }: Props) {
       void setClosingConfirmation(false);
     };
   }, [dirty]);
+
+  // Быстрый ввод: ассистент распознаёт реквизиты и заполняет форму (FR-21).
+  // Ничего не сохраняет — пользователь проверяет поля и нажимает «Сохранить».
+  const recognize = useMutation({
+    mutationFn: () => draftDocument(organizationId, assistantText),
+    onSuccess: (draft) => {
+      setForm((prev) => ({
+        ...prev,
+        title: draft.title !== '' ? draft.title : prev.title,
+        number: draft.number ?? prev.number,
+        issuer: draft.issuer ?? prev.issuer,
+        validFrom: draft.valid_from ?? prev.validFrom,
+        validUntil: draft.valid_until ?? prev.validUntil,
+        indefinite: draft.valid_until ? false : prev.indefinite,
+        documentTypeCode: draft.document_type_code ?? prev.documentTypeCode,
+        offsets: draft.reminder_offsets_days.length > 0 ? [...draft.reminder_offsets_days] : prev.offsets,
+      }));
+      setErrors({});
+      setNotice(
+        draft.confidence >= 0.5
+          ? 'Поля заполнены по тексту — проверьте их перед сохранением'
+          : 'Распознано не всё: проверьте и дополните поля вручную',
+      );
+    },
+    onError: (error) => setNotice(messageForError(error)),
+  });
 
   const save = useMutation({
     mutationFn: async () => {
@@ -163,6 +192,33 @@ export function DocumentFormPage({ mode }: Props) {
         </Button>
       }
     >
+      {mode === 'create' && me.assistant_enabled ? (
+        <section className="card stack stack--tight" aria-label="Быстрый ввод">
+          <h2 className="card__title">Быстрый ввод</h2>
+          <p className="card__text">
+            Вставьте строку из таблицы или текст документа — поля формы заполнятся автоматически.
+          </p>
+          <Textarea
+            aria-label="Текст документа для распознавания"
+            value={assistantText}
+            placeholder="Лицензия на алкоголь № 78РПА0012345, выдана 14.03.2024, действует до 13.03.2029"
+            onChange={(event) => setAssistantText(event.target.value)}
+          />
+          <Button
+            size="medium"
+            variant="secondary"
+            loading={recognize.isPending}
+            disabled={recognize.isPending || assistantText.trim() === ''}
+            onClick={() => recognize.mutate()}
+          >
+            Заполнить по тексту
+          </Button>
+          <span className="field__hint">
+            Текст обрабатывается сервисом GigaChat. Документ сохраняется только после вашего подтверждения.
+          </span>
+        </section>
+      ) : null}
+
       {mode === 'create' ? (
         <div className="field">
           <label className="field__label" htmlFor="document-type">

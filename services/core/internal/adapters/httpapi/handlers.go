@@ -88,6 +88,7 @@ func (s *Server) handleGetMe(w http.ResponseWriter, r *http.Request, actor app.A
 			MaxMembersPerOrganization:   domain.MaxMembersPerOrganization,
 			MaxReminderOffsets:          domain.MaxReminderOffsets,
 		},
+		AssistantEnabled: s.app.AssistantEnabled(),
 	})
 }
 
@@ -348,6 +349,64 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request, ac
 		status = http.StatusCreated
 	}
 	s.writeJSON(w, status, toDocumentDTO(view))
+}
+
+// handleDraftDocument — POST /organizations/{organizationId}/documents/draft.
+// Возвращает черновик карточки, распознанный языковым ассистентом (FR-21).
+// Ничего не сохраняет: документ создаётся обычным POST после подтверждения.
+func (s *Server) handleDraftDocument(w http.ResponseWriter, r *http.Request, actor app.Actor) {
+	if !s.assistantLimiter.Allow("draft:"+actor.Account.PublicID, time.Now()) {
+		s.fail(w, r, domain.ErrRateLimited)
+		return
+	}
+	var body struct {
+		Text string `json:"text"`
+	}
+	if _, err := decodeBody(r, &body); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	draft, err := s.app.DraftDocument(r.Context(), actor, r.PathValue("organizationId"), body.Text)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, documentDraftDTO{
+		Title:            draft.Title,
+		Number:           nullable(draft.Number),
+		Issuer:           nullable(draft.Issuer),
+		ValidFrom:        nullable(draft.ValidFrom),
+		ValidUntil:       nullable(draft.ValidUntil),
+		DocumentTypeCode: nullable(draft.DocumentTypeCode),
+		Offsets:          intsOrEmpty(draft.Offsets),
+		Confidence:       draft.Confidence,
+	})
+}
+
+// handleMatchProfile — POST /profile-match.
+// Сопоставляет свободное описание бизнеса с кодами справочника (FR-22).
+func (s *Server) handleMatchProfile(w http.ResponseWriter, r *http.Request, actor app.Actor) {
+	if !s.assistantLimiter.Allow("profile:"+actor.Account.PublicID, time.Now()) {
+		s.fail(w, r, domain.ErrRateLimited)
+		return
+	}
+	var body struct {
+		Description string `json:"description"`
+	}
+	if _, err := decodeBody(r, &body); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	match, err := s.app.MatchProfile(r.Context(), actor, body.Description)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, profileMatchDTO{
+		BusinessCategoryCode: nullable(match.BusinessCategoryCode),
+		FeatureCodes:         stringsOrEmpty(match.FeatureCodes),
+		Confidence:           match.Confidence,
+	})
 }
 
 // handleCreateDocumentsBatch — POST /organizations/{organizationId}/documents/batch.

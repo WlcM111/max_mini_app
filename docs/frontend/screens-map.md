@@ -9,13 +9,13 @@
 |---|---|---|---|---|---|
 | `/` | `HomeRedirect` | `me` из контекста | — | — | мгновенный переход |
 | `/welcome` | `WelcomePage` | — | «Продолжить» | — | статичный |
-| `/onboarding/organization` | `OrganizationFormPage` | `GET /catalog` | черновик | — | загрузка, ошибка, ошибки полей |
+| `/onboarding/organization` | `OrganizationFormPage` | `GET /catalog`, `POST /profile-match` | черновик, подбор профиля по описанию (FR-22) | — | загрузка, ошибка, ошибки полей, подбор не дал результата, ассистент выключен |
 | `/onboarding/features` | `FeaturesPage` | `GET /catalog` | `POST /organizations` | — | загрузка, ошибка, повтор при `CONFLICT_ID_REUSED` |
 | `/onboarding/suggestions` | `SuggestionsPage` | `GET /suggestions` | выбор типов | owner | загрузка, пусто, ошибка |
 | `/onboarding/dates` | `DatesPage` | `GET /catalog` | `POST /documents/batch` | owner | загрузка, ошибка, проверка дат |
 | `/o/:orgId` | `DashboardPage` | `GET /organizations/{id}`, `GET /documents?limit=5`, `me` | переходы | viewer | загрузка, пусто, ошибка, баннер канала |
 | `/o/:orgId/documents` | `DocumentsPage` | `GET /documents` (курсор) | фильтр, поиск, подгрузка | viewer | загрузка, пусто (фильтр/поиск), ошибка |
-| `/o/:orgId/documents/new` | `DocumentFormPage` | `GET /catalog` | `POST /documents` | editor | отправка, ошибки полей, QR |
+| `/o/:orgId/documents/new` | `DocumentFormPage` | `GET /catalog`, `POST /documents/draft` | `POST /documents`, быстрый ввод по тексту (FR-21) | editor | отправка, ошибки полей, QR, распознавание, ассистент недоступен |
 | `/d/:docId` | `DocumentCardPage` | `GET /documents/{id}`, `GET /organizations/{id}` | «Продлить», «Изменить», «Удалить», отметки чек-листа продления | viewer (изменение документа — editor, чек-лист доступен всем) | загрузка, 404, подтверждение удаления, прогресс чек-листа |
 | `/d/:docId/edit` | `DocumentFormPage` | `GET /documents/{id}` | `PATCH /documents/{id}` | editor | конфликт версии, ошибки полей |
 | `/d/:docId/renew` | `RenewPage` | `GET /documents/{id}` | `POST /renewals` | editor | загрузка, ошибка дат |

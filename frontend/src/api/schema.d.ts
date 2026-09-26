@@ -130,6 +130,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizations/{organizationId}/documents/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Черновик карточки документа из свободного текста
+         * @description Языковой ассистент (GigaChat, ADR-032) извлекает реквизиты документа из текста,
+         *     который пользователь вставил или продиктовал, и возвращает черновик формы.
+         *     Операция ничего не сохраняет: документ создаётся обычным `POST .../documents`
+         *     после подтверждения пользователем. Коды типов проверяются по справочнику,
+         *     даты приводятся к `YYYY-MM-DD`; нераспознанные значения возвращаются пустыми.
+         *     Доступна, если `assistant_enabled` в `GET /me` равно `true`, иначе 503.
+         */
+        post: operations["draftDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/organizations/{organizationId}/documents": {
         parameters: {
             query?: never;
@@ -380,6 +407,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile-match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Подбор вида деятельности и признаков по описанию бизнеса
+         * @description Языковой ассистент (GigaChat, ADR-032) сопоставляет свободное описание бизнеса
+         *     с кодами справочника. Возвращает только существующие коды: неизвестные значения
+         *     отбрасываются сервером. Результат подставляется в форму онбординга и
+         *     подтверждается пользователем. Организация при этом не создаётся и не изменяется.
+         *     Доступна, если `assistant_enabled` в `GET /me` равно `true`, иначе 503.
+         */
+        post: operations["matchProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/client-events": {
         parameters: {
             query?: never;
@@ -508,6 +559,11 @@ export interface components {
             memberships: components["schemas"]["MembershipSummary"][];
             reminders_channel: components["schemas"]["RemindersChannel"];
             limits: components["schemas"]["Limits"];
+            /**
+             * @description Подключён ли языковой ассистент. Если false — операции `draftDocument`
+             *     и `matchProfile` недоступны, интерфейс скрывает соответствующие кнопки.
+             */
+            assistant_enabled: boolean;
         };
         BusinessCategory: {
             code: string;
@@ -585,6 +641,33 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        DocumentDraftRequest: {
+            /** @description Текст пользователя с реквизитами документа */
+            text: string;
+        };
+        DocumentDraft: {
+            title: string;
+            number: string | null;
+            issuer: string | null;
+            /** Format: date */
+            valid_from: string | null;
+            /** Format: date */
+            valid_until: string | null;
+            document_type_code: string | null;
+            /** @description Отступы напоминаний по умолчанию для распознанного типа */
+            reminder_offsets_days: number[];
+            /** @description Уверенность ассистента; поля в любом случае подтверждает пользователь */
+            confidence: number;
+        };
+        ProfileMatchRequest: {
+            /** @description Свободное описание бизнеса */
+            description: string;
+        };
+        ProfileMatch: {
+            business_category_code: string | null;
+            feature_codes: string[];
+            confidence: number;
         };
         Suggestion: {
             document_type_code: string;
@@ -1131,6 +1214,39 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            default: components["responses"]["Unexpected"];
+        };
+    };
+    draftDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDraft"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
             default: components["responses"]["Unexpected"];
         };
     };
@@ -1706,6 +1822,35 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            default: components["responses"]["Unexpected"];
+        };
+    };
+    matchProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileMatch"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
             default: components["responses"]["Unexpected"];
         };
     };

@@ -21,3 +21,6 @@ coverage.out
 *.backup
 *.backup.*
 ports.txt
+
+# Архивы выгрузок проекта
+*.zip

@@ -27,6 +27,14 @@ certs=$(awk '{sub(/\r$/,""); print}' deploy/ca/*.pem 2>/dev/null | grep -c '^---
 openssl x509 -in deploy/ca/russian_trusted_root_ca.pem -noout -checkend 0 >/dev/null 2>&1 && ok "корневой сертификат действует" || bad "корневой сертификат просрочен или нечитаем"
 grep -q 'sub(/\\r\$/' services/bot/Dockerfile && ok "бандл CA нормализуется в образе (D-23)" || bad "в Dockerfile бота склейка ломает PEM"
 
+echo "== Языковой ассистент (ADR-032) =="
+grep -q "COPY deploy/ca /ca" services/core/Dockerfile && ok "core: бандл НУЦ Минцифры в образе" || bad "core: нужен бандл сертификатов для TLS с GigaChat"
+grep -q "CORE_GIGACHAT_AUTH_KEY" compose.yaml && ok "compose передаёт ключ GigaChat" || bad "в compose нет CORE_GIGACHAT_AUTH_KEY"
+grep -q "CORE_GIGACHAT_AUTH_KEY" .env.example && ok ".env.example описывает ключ GigaChat" || bad "в .env.example нет CORE_GIGACHAT_AUTH_KEY"
+[ -x scripts/setup_gigachat_env.sh ] && ok "scripts/setup_gigachat_env.sh исполняемый" || bad "chmod +x scripts/setup_gigachat_env.sh"
+grep -q "version: 1.2.0" openapi.yaml && ok "openapi 1.2.0 с операциями ассистента" || bad "openapi не обновлён до 1.2.0"
+git ls-files | grep -qE "^\.env$" && bad ".env в репозитории" || ok "ключ GigaChat вне репозитория"
+
 echo "== Зависимости Go =="
 grep -q "3Dnd1cDaZlB68lziofO" go.sum && ok "go.sum с официального прокси (D-16)" || bad "go.sum содержит хеши локального зеркала: rm go.sum && go mod download all"
 

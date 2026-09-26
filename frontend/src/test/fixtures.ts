@@ -34,6 +34,7 @@ export const me: Me = {
     max_members_per_organization: 30,
     max_reminder_offsets: 5,
   },
+  assistant_enabled: true,
 };
 
 export const session: Session = {

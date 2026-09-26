@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Button, Input } from '@maxhub/max-ui';
-import { useQuery } from '@tanstack/react-query';
+import { Button, Input, Textarea } from '@maxhub/max-ui';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { queryKeys } from '../../api/queryKeys';
+import { messageForError } from '../../api/errors';
 import { AppShell } from '../../shared/ui/AppShell';
 import { ErrorView, LoadingView } from '../../shared/ui/StateViews';
 import { validateOrganizationName, validateRequiredCode, validateTimezone } from '../../shared/lib/validation';
-import { getCatalog } from '../organizations/api';
+import { getCatalog, matchProfile } from '../organizations/api';
+import { useSession } from '../../session/useSession';
 import { getDraft, updateDraft } from './onboardingDraft';
 
 /** Шаг 1 онбординга: профиль бизнеса (черновик хранится локально). */
@@ -18,8 +20,31 @@ export function OrganizationFormPage() {
   const [regionCode, setRegionCode] = useState(draft.regionCode);
   const [timezone, setTimezone] = useState(draft.timezone);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [description, setDescription] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
+  const { me } = useSession();
 
   const catalog = useQuery({ queryKey: queryKeys.catalog(), queryFn: getCatalog, staleTime: Infinity });
+
+  // Подбор профиля по свободному описанию (FR-22): ассистент возвращает только
+  // коды справочника, пользователь видит результат и может его изменить.
+  const match = useMutation({
+    mutationFn: () => matchProfile(description),
+    onSuccess: (result) => {
+      if (result.business_category_code) setCategoryCode(result.business_category_code);
+      updateDraft({ featureCodes: [...result.feature_codes] });
+      const category = catalog.data?.business_categories.find(
+        (item) => item.code === result.business_category_code,
+      );
+      setNotice(
+        result.business_category_code || result.feature_codes.length > 0
+          ? `Подобрано: ${category?.title ?? 'вид деятельности не определён'}` +
+              `, признаков: ${result.feature_codes.length}. Проверьте и продолжите.`
+          : 'По описанию ничего не подобрано — заполните поля вручную',
+      );
+    },
+    onError: (error) => setNotice(messageForError(error)),
+  });
 
   useEffect(() => {
     if (!catalog.data) return;
@@ -75,6 +100,36 @@ export function OrganizationFormPage() {
         </Button>
       }
     >
+      {me.assistant_enabled ? (
+        <section className="card stack stack--tight" aria-label="Подбор по описанию">
+          <h2 className="card__title">Опишите бизнес своими словами</h2>
+          <p className="card__text">
+            По описанию подберём вид деятельности и признаки — останется проверить и продолжить.
+          </p>
+          <Textarea
+            aria-label="Описание бизнеса"
+            value={description}
+            placeholder="Кофейня на 30 мест, есть летняя веранда, продаём пиво"
+            onChange={(event) => setDescription(event.target.value)}
+          />
+          <Button
+            size="medium"
+            variant="secondary"
+            loading={match.isPending}
+            disabled={match.isPending || description.trim() === ''}
+            onClick={() => match.mutate()}
+          >
+            Подобрать по описанию
+          </Button>
+          {notice ? (
+            <p className="muted" aria-live="polite">
+              {notice}
+            </p>
+          ) : null}
+          <span className="field__hint">Текст обрабатывается сервисом GigaChat; данные организации не передаются.</span>
+        </section>
+      ) : null}
+
       <div className="field">
         <label className="field__label" htmlFor="onboarding-name">
           Название

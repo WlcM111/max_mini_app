@@ -41,6 +41,18 @@ type Config struct {
 	RemindersRPCTimeout time.Duration `env:"CORE_REMINDERS_RPC_TIMEOUT" envDefault:"2s"`
 	SyncFlushTimeout    time.Duration `env:"CORE_REMINDERS_SYNC_FLUSH_TIMEOUT" envDefault:"300ms"`
 
+	// Языковой ассистент GigaChat (ADR-032). Пустой ключ полностью отключает
+	// функцию: сценарии сообщают об этом в GET /me, интерфейс скрывает кнопки.
+	GigaChatAuthKey          string        `env:"CORE_GIGACHAT_AUTH_KEY"`
+	GigaChatScope            string        `env:"CORE_GIGACHAT_SCOPE" envDefault:"GIGACHAT_API_PERS"`
+	GigaChatModel            string        `env:"CORE_GIGACHAT_MODEL" envDefault:"GigaChat-Pro"`
+	GigaChatBaseURL          string        `env:"CORE_GIGACHAT_BASE_URL" envDefault:"https://gigachat.devices.sberbank.ru/api/v1"`
+	GigaChatOAuthURL         string        `env:"CORE_GIGACHAT_OAUTH_URL" envDefault:"https://ngw.devices.sberbank.ru:9443/api/v2/oauth"`
+	GigaChatCAFile           string        `env:"CORE_GIGACHAT_CA_FILE" envDefault:"/etc/vovremya/ca/russian_trusted_ca_bundle.pem"`
+	GigaChatTimeout          time.Duration `env:"CORE_GIGACHAT_TIMEOUT" envDefault:"8s"`
+	GigaChatMaxInputChars    int           `env:"CORE_GIGACHAT_MAX_INPUT_CHARS" envDefault:"2000"`
+	GigaChatDailyTokenBudget int           `env:"CORE_GIGACHAT_DAILY_TOKEN_BUDGET" envDefault:"200000"`
+
 	PublicBaseURL     string   `env:"CORE_PUBLIC_BASE_URL" envDefault:"http://localhost:8080"`
 	TrustedProxyCIDRs []string `env:"CORE_TRUSTED_PROXY_CIDRS" envSeparator:"," envDefault:"10.77.1.0/24"`
 
@@ -53,6 +65,7 @@ type Config struct {
 	RateSessionPerIP    int     `env:"CORE_RATE_SESSION_PER_IP_MIN" envDefault:"300"`
 	RateInvitePerMinute int     `env:"CORE_RATE_INVITE_PER_MIN" envDefault:"10"`
 	RateEventsPerMinute int     `env:"CORE_RATE_CLIENT_EVENTS_PER_MIN" envDefault:"60"`
+	RateAssistantPerMin int     `env:"CORE_RATE_ASSISTANT_PER_MIN" envDefault:"10"`
 
 	InviteTTL time.Duration `env:"CORE_INVITE_TTL" envDefault:"72h"`
 	ExportTTL time.Duration `env:"CORE_EXPORT_TTL" envDefault:"10m"`
@@ -72,7 +85,7 @@ type Config struct {
 // Load читает конфигурацию окружения для указанной команды.
 func Load(command string) (Config, error) {
 	if err := platformconfig.ExpandFileRefs("CORE_DATABASE_URL", "CORE_MIGRATE_DATABASE_URL",
-		"CORE_MAX_WEBAPP_SECRET_HEX"); err != nil {
+		"CORE_MAX_WEBAPP_SECRET_HEX", "CORE_GIGACHAT_AUTH_KEY"); err != nil {
 		return Config{}, err
 	}
 	var cfg Config
@@ -128,6 +141,53 @@ func (c Config) validate(command string) error {
 	}
 	if c.RelayConcurrency <= 0 || c.RelayConcurrency > 4 {
 		return fmt.Errorf("CORE_RELAY_CONCURRENCY: ожидается 1…4")
+	}
+	if err := c.validateAssistant(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// AssistantEnabled сообщает, подключён ли языковой ассистент.
+func (c Config) AssistantEnabled() bool { return strings.TrimSpace(c.GigaChatAuthKey) != "" }
+
+// validateAssistant проверяет параметры GigaChat; без ключа функция выключена
+// и остальные значения не проверяются.
+func (c Config) validateAssistant() error {
+	if !c.AssistantEnabled() {
+		return nil
+	}
+	switch c.GigaChatScope {
+	case "GIGACHAT_API_PERS", "GIGACHAT_API_B2B", "GIGACHAT_API_CORP":
+	default:
+		return fmt.Errorf("CORE_GIGACHAT_SCOPE: допустимо GIGACHAT_API_PERS, GIGACHAT_API_B2B или GIGACHAT_API_CORP")
+	}
+	if strings.TrimSpace(c.GigaChatModel) == "" {
+		return fmt.Errorf("CORE_GIGACHAT_MODEL: обязательна при включённом ассистенте")
+	}
+	for name, raw := range map[string]string{
+		"CORE_GIGACHAT_BASE_URL":  c.GigaChatBaseURL,
+		"CORE_GIGACHAT_OAUTH_URL": c.GigaChatOAuthURL,
+	} {
+		u, err := url.Parse(raw)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return fmt.Errorf("%s: ожидается абсолютный адрес", name)
+		}
+		if c.AppEnv == "prod" && u.Scheme != "https" {
+			return fmt.Errorf("%s: в prod требуется https", name)
+		}
+	}
+	if c.GigaChatTimeout <= 0 || c.GigaChatTimeout > 30*time.Second {
+		return fmt.Errorf("CORE_GIGACHAT_TIMEOUT: ожидается от 1мс до 30с")
+	}
+	if c.GigaChatMaxInputChars < 100 || c.GigaChatMaxInputChars > 8000 {
+		return fmt.Errorf("CORE_GIGACHAT_MAX_INPUT_CHARS: ожидается 100…8000")
+	}
+	if c.GigaChatDailyTokenBudget < 0 {
+		return fmt.Errorf("CORE_GIGACHAT_DAILY_TOKEN_BUDGET: ожидается неотрицательное число")
+	}
+	if c.RateAssistantPerMin <= 0 {
+		return fmt.Errorf("CORE_RATE_ASSISTANT_PER_MIN: ожидается положительное число")
 	}
 	return nil
 }

@@ -8,9 +8,13 @@ const base = 'http://localhost:3000/api/v1';
 export const calls = {
   createDocument: 0,
   createSession: 0,
+  draftDocument: 0,
+  matchProfile: 0,
   reset(): void {
     calls.createDocument = 0;
     calls.createSession = 0;
+    calls.draftDocument = 0;
+    calls.matchProfile = 0;
   },
 };
 
@@ -124,6 +128,27 @@ export const handlers = [
       { status: 201 },
     ),
   ),
+  http.post(`${base}/organizations/:organizationId/documents/draft`, () => {
+    calls.draftDocument += 1;
+    return HttpResponse.json({
+      title: 'Лицензия на алкоголь',
+      number: '78РПА0012345',
+      issuer: 'Комитет по промышленной политике',
+      valid_from: '2024-03-14',
+      valid_until: '2029-03-13',
+      document_type_code: 'alcohol_retail_license',
+      reminder_offsets_days: [60, 30, 7],
+      confidence: 0.92,
+    });
+  }),
+  http.post(`${base}/profile-match`, () => {
+    calls.matchProfile += 1;
+    return HttpResponse.json({
+      business_category_code: 'food_service',
+      feature_codes: ['has_premises', 'sells_alcohol'],
+      confidence: 0.8,
+    });
+  }),
   http.post(`${base}/client-events`, () => new HttpResponse(null, { status: 202 })),
 ];
 

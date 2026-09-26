@@ -16,22 +16,24 @@ import (
 
 // Settings — параметры сценариев, приходящие из конфигурации сервиса.
 type Settings struct {
-	SessionTTL          time.Duration
-	InviteTTL           time.Duration
-	ExportTTL           time.Duration
-	PublicBaseURL       string
-	BotProfileCacheTTL  time.Duration
-	BotRPCTimeout       time.Duration
-	RemindersRPCTimeout time.Duration
-	SyncFlushTimeout    time.Duration
-	OutboxBatch         int
-	OutboxLease         time.Duration
-	RelayInterval       time.Duration
-	RelayConcurrency    int
-	RetentionInterval   time.Duration
-	SessionRetention    time.Duration
-	AuditRetention      time.Duration
-	OutboxRetention     time.Duration
+	SessionTTL             time.Duration
+	InviteTTL              time.Duration
+	ExportTTL              time.Duration
+	PublicBaseURL          string
+	BotProfileCacheTTL     time.Duration
+	BotRPCTimeout          time.Duration
+	RemindersRPCTimeout    time.Duration
+	SyncFlushTimeout       time.Duration
+	AssistantTimeout       time.Duration
+	AssistantMaxInputChars int
+	OutboxBatch            int
+	OutboxLease            time.Duration
+	RelayInterval          time.Duration
+	RelayConcurrency       int
+	RetentionInterval      time.Duration
+	SessionRetention       time.Duration
+	AuditRetention         time.Duration
+	OutboxRetention        time.Duration
 }
 
 // Deps — зависимости сценариев.
@@ -49,6 +51,7 @@ type Deps struct {
 	Launch    ports.LaunchVerifier
 	Bot       ports.BotGateway
 	Reminders ports.RemindersGateway
+	Assistant ports.DraftAssistant
 	Clock     ports.Clock
 	Random    ports.Random
 	Log       *slog.Logger

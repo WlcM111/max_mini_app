@@ -111,6 +111,7 @@ type meDTO struct {
 	Memberships      []membershipSummaryDTO `json:"memberships"`
 	RemindersChannel remindersChannelDTO    `json:"reminders_channel"`
 	Limits           limitsDTO              `json:"limits"`
+	AssistantEnabled bool                   `json:"assistant_enabled"`
 }
 
 type catalogSourceDTO struct {
@@ -388,4 +389,39 @@ type calendarExportDTO struct {
 	DownloadURL string `json:"download_url"`
 	FileName    string `json:"file_name"`
 	ExpiresAt   string `json:"expires_at"`
+}
+
+// documentDraftDTO — черновик карточки документа от ассистента (FR-21).
+type documentDraftDTO struct {
+	Title            string  `json:"title"`
+	Number           *string `json:"number"`
+	Issuer           *string `json:"issuer"`
+	ValidFrom        *string `json:"valid_from"`
+	ValidUntil       *string `json:"valid_until"`
+	DocumentTypeCode *string `json:"document_type_code"`
+	Offsets          []int   `json:"reminder_offsets_days"`
+	Confidence       float64 `json:"confidence"`
+}
+
+// profileMatchDTO — профиль организации по описанию (FR-22).
+type profileMatchDTO struct {
+	BusinessCategoryCode *string  `json:"business_category_code"`
+	FeatureCodes         []string `json:"feature_codes"`
+	Confidence           float64  `json:"confidence"`
+}
+
+// intsOrEmpty гарантирует пустой массив вместо null в ответе.
+func intsOrEmpty(values []int) []int {
+	if values == nil {
+		return []int{}
+	}
+	return values
+}
+
+// stringsOrEmpty гарантирует пустой массив вместо null в ответе.
+func stringsOrEmpty(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
 }

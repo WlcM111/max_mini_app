@@ -8,12 +8,14 @@ import (
 
 // Metrics — предметные метрики core-service (ADR-026: объявляются в сервисе).
 type Metrics struct {
-	SessionCreate  *prometheus.CounterVec
-	ClientEvents   *prometheus.CounterVec
-	OutboxPending  prometheus.Gauge
-	OutboxDelivery *prometheus.CounterVec
-	RemindersRead  *prometheus.CounterVec
-	AppErrors      *prometheus.CounterVec
+	SessionCreate   *prometheus.CounterVec
+	ClientEvents    *prometheus.CounterVec
+	OutboxPending   prometheus.Gauge
+	OutboxDelivery  *prometheus.CounterVec
+	RemindersRead   *prometheus.CounterVec
+	Assistant       *prometheus.CounterVec
+	AssistantTokens *prometheus.CounterVec
+	AppErrors       *prometheus.CounterVec
 }
 
 // NewMetrics регистрирует метрики сервиса в общем реестре.
@@ -39,12 +41,21 @@ func NewMetrics(reg *metrics.Registry) *Metrics {
 			Name: "vovremya_reminders_read_total",
 			Help: "Чтение плана напоминаний из reminders-service.",
 		}, []string{"result"}),
+		Assistant: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "vovremya_assistant_requests_total",
+			Help: "Обращения к языковому ассистенту по операции и исходу.",
+		}, []string{"operation", "result"}),
+		AssistantTokens: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "vovremya_assistant_tokens_total",
+			Help: "Израсходованные токены языкового ассистента.",
+		}, []string{"operation"}),
 	}
 	if reg != nil {
 		// vovremya_app_errors_total объявлена в общем каркасе (observability §2):
 		// сервис переиспользует её, а не регистрирует повторно.
 		m.AppErrors = reg.AppErrors
-		reg.MustRegister(m.SessionCreate, m.ClientEvents, m.OutboxPending, m.OutboxDelivery, m.RemindersRead)
+		reg.MustRegister(m.SessionCreate, m.ClientEvents, m.OutboxPending, m.OutboxDelivery, m.RemindersRead,
+			m.Assistant, m.AssistantTokens)
 	} else {
 		m.AppErrors = prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "vovremya_app_errors_total",

@@ -165,6 +165,17 @@ services:
       CORE_OUTBOX_BATCH: ${CORE_OUTBOX_BATCH:-100}
       CORE_RELAY_INTERVAL: ${CORE_RELAY_INTERVAL:-2s}
       CORE_RETENTION_INTERVAL: ${CORE_RETENTION_INTERVAL:-1h}
+      # Языковой ассистент (ADR-032). Без CORE_GIGACHAT_AUTH_KEY функция выключена.
+      CORE_GIGACHAT_AUTH_KEY: ${CORE_GIGACHAT_AUTH_KEY:-}
+      CORE_GIGACHAT_SCOPE: ${CORE_GIGACHAT_SCOPE:-GIGACHAT_API_PERS}
+      CORE_GIGACHAT_MODEL: ${CORE_GIGACHAT_MODEL:-GigaChat-Pro}
+      CORE_GIGACHAT_BASE_URL: ${CORE_GIGACHAT_BASE_URL:-https://gigachat.devices.sberbank.ru/api/v1}
+      CORE_GIGACHAT_OAUTH_URL: ${CORE_GIGACHAT_OAUTH_URL:-https://ngw.devices.sberbank.ru:9443/api/v2/oauth}
+      CORE_GIGACHAT_CA_FILE: ${CORE_GIGACHAT_CA_FILE:-/etc/vovremya/ca/russian_trusted_ca_bundle.pem}
+      CORE_GIGACHAT_TIMEOUT: ${CORE_GIGACHAT_TIMEOUT:-8s}
+      CORE_GIGACHAT_MAX_INPUT_CHARS: ${CORE_GIGACHAT_MAX_INPUT_CHARS:-2000}
+      CORE_GIGACHAT_DAILY_TOKEN_BUDGET: ${CORE_GIGACHAT_DAILY_TOKEN_BUDGET:-200000}
+      CORE_RATE_ASSISTANT_PER_MIN: ${CORE_RATE_ASSISTANT_PER_MIN:-10}
     depends_on:
       core-migrate: { condition: service_completed_successfully }
       bot: { condition: service_healthy }

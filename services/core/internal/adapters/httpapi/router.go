@@ -21,6 +21,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.Handle("GET "+p+"/organizations/{organizationId}/documents", s.authenticated(s.handleListDocuments))
 	mux.Handle("POST "+p+"/organizations/{organizationId}/documents", s.authenticated(s.handleCreateDocument))
 	mux.Handle("POST "+p+"/organizations/{organizationId}/documents/batch", s.authenticated(s.handleCreateDocumentsBatch))
+	mux.Handle("POST "+p+"/organizations/{organizationId}/documents/draft", s.authenticated(s.handleDraftDocument))
 	mux.Handle("GET "+p+"/documents/{documentId}", s.authenticated(s.handleGetDocument))
 	mux.Handle("PATCH "+p+"/documents/{documentId}", s.authenticated(s.handleUpdateDocument))
 	mux.Handle("DELETE "+p+"/documents/{documentId}", s.authenticated(s.handleDeleteDocument))
@@ -40,5 +41,6 @@ func (s *Server) routes(mux *http.ServeMux) {
 
 	mux.Handle("POST "+p+"/organizations/{organizationId}/exports/calendar", s.authenticated(s.handleCreateExport))
 	mux.HandleFunc("GET "+p+"/downloads/{downloadToken}", s.handleDownloadCalendar)
+	mux.Handle("POST "+p+"/profile-match", s.authenticated(s.handleMatchProfile))
 	mux.HandleFunc("POST "+p+"/client-events", s.handleClientEvents)
 }

@@ -49,6 +49,16 @@
 | `CORE_EXPORT_TTL` | `10m` | нет | срок ссылки ICS |
 | `CORE_RETENTION_INTERVAL` | `1h` | нет | период очистки |
 | `CORE_SHUTDOWN_TIMEOUT` | `25s` | нет | общий срок остановки |
+| `CORE_GIGACHAT_AUTH_KEY` | пусто | **да, секрет** | ключ авторизации GigaChat API: Base64(Client ID:Client Secret). Пусто — ассистент выключен (ADR-032). Поддерживается `CORE_GIGACHAT_AUTH_KEY_FILE` |
+| `CORE_GIGACHAT_SCOPE` | `GIGACHAT_API_PERS` | нет | область доступа: PERS, B2B или CORP |
+| `CORE_GIGACHAT_MODEL` | `GigaChat-Pro` | нет | модель генерации |
+| `CORE_GIGACHAT_BASE_URL` | `https://gigachat.devices.sberbank.ru/api/v1` | нет | адрес API; в prod только https |
+| `CORE_GIGACHAT_OAUTH_URL` | `https://ngw.devices.sberbank.ru:9443/api/v2/oauth` | нет | выдача токена доступа (живёт 30 минут) |
+| `CORE_GIGACHAT_CA_FILE` | `/etc/vovremya/ca/russian_trusted_ca_bundle.pem` | нет | бандл НУЦ Минцифры для TLS с доменами Сбера |
+| `CORE_GIGACHAT_TIMEOUT` | `8s` | нет | предел ожидания ответа модели |
+| `CORE_GIGACHAT_MAX_INPUT_CHARS` | `2000` | нет | предел длины текста пользователя |
+| `CORE_GIGACHAT_DAILY_TOKEN_BUDGET` | `200000` | нет | суточный бюджет токенов; 0 — без ограничения |
+| `CORE_RATE_ASSISTANT_PER_MIN` | `10` | нет | обращений к ассистенту в минуту на аккаунт |
 
 ## bot
 

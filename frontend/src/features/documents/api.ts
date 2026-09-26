@@ -2,6 +2,7 @@ import {
   client,
   run,
   type Document,
+  type DocumentDraft,
   type DocumentCreate,
   type DocumentPage,
   type DocumentUpdate,
@@ -72,3 +73,17 @@ export const deleteDocument = (documentId: string): Promise<void> =>
   run(({ headers, signal }) =>
     client.DELETE('/documents/{documentId}', { params: { path: { documentId } }, headers, signal }),
   ).then(() => undefined);
+
+/**
+ * Черновик карточки документа из свободного текста (FR-21). Ничего не сохраняет:
+ * поля подставляются в форму, которую подтверждает пользователь.
+ */
+export const draftDocument = (organizationId: string, text: string): Promise<DocumentDraft> =>
+  run(({ headers, signal }) =>
+    client.POST('/organizations/{organizationId}/documents/draft', {
+      params: { path: { organizationId } },
+      body: { text },
+      headers,
+      signal,
+    }),
+  );

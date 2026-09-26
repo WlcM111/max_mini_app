@@ -21,6 +21,7 @@ import (
 	"vovremya/internal/platform/pgkit"
 	"vovremya/services/core/internal/adapters/botgrpc"
 	"vovremya/services/core/internal/adapters/clock"
+	"vovremya/services/core/internal/adapters/gigachat"
 	"vovremya/services/core/internal/adapters/httpapi"
 	"vovremya/services/core/internal/adapters/maxlaunch"
 	"vovremya/services/core/internal/adapters/postgres"
@@ -28,6 +29,7 @@ import (
 	"vovremya/services/core/internal/app"
 	"vovremya/services/core/internal/config"
 	"vovremya/services/core/internal/domain"
+	"vovremya/services/core/internal/ports"
 	"vovremya/services/core/migrations"
 )
 
@@ -161,6 +163,35 @@ func build(ctx context.Context, cfg config.Config, log *slog.Logger) (dependenci
 		return dependencies{}, err
 	}
 
+	// Языковой ассистент подключается только при заданном ключе: без него
+	// сценарии FR-21 и FR-22 отключены, остальная работа не меняется (ADR-032).
+	var assistant ports.DraftAssistant
+	if cfg.AssistantEnabled() {
+		client, err := gigachat.New(gigachat.Config{
+			AuthKey:          cfg.GigaChatAuthKey,
+			Scope:            cfg.GigaChatScope,
+			Model:            cfg.GigaChatModel,
+			BaseURL:          cfg.GigaChatBaseURL,
+			OAuthURL:         cfg.GigaChatOAuthURL,
+			CAFile:           cfg.GigaChatCAFile,
+			Timeout:          cfg.GigaChatTimeout,
+			DailyTokenBudget: cfg.GigaChatDailyTokenBudget,
+			Log:              log,
+			OnUsage: func(operation string, tokens int) {
+				appMetrics.AssistantTokens.WithLabelValues(operation).Add(float64(tokens))
+			},
+		})
+		if err != nil {
+			_ = remindersClient.Close()
+			_ = botClient.Close()
+			pool.Close()
+			return dependencies{}, err
+		}
+		assistant = client
+		log.Info("языковой ассистент подключён", slog.String("model", cfg.GigaChatModel),
+			slog.String("scope", cfg.GigaChatScope))
+	}
+
 	application := app.New(app.Deps{
 		Tx:        pool,
 		Accounts:  postgres.NewAccountRepo(pool, m),
@@ -175,27 +206,30 @@ func build(ctx context.Context, cfg config.Config, log *slog.Logger) (dependenci
 		Launch:    verifier,
 		Bot:       botClient,
 		Reminders: remindersClient,
+		Assistant: assistant,
 		Clock:     clock.System{},
 		Random:    clock.Random{},
 		Log:       log,
 		Metrics:   appMetrics,
 		Settings: app.Settings{
-			SessionTTL:          cfg.SessionTTL,
-			InviteTTL:           cfg.InviteTTL,
-			ExportTTL:           cfg.ExportTTL,
-			PublicBaseURL:       cfg.PublicBaseURL,
-			BotProfileCacheTTL:  cfg.BotProfileCacheTTL,
-			BotRPCTimeout:       cfg.BotRPCTimeout,
-			RemindersRPCTimeout: cfg.RemindersRPCTimeout,
-			SyncFlushTimeout:    cfg.SyncFlushTimeout,
-			OutboxBatch:         cfg.OutboxBatch,
-			OutboxLease:         cfg.OutboxLease,
-			RelayInterval:       cfg.RelayInterval,
-			RelayConcurrency:    cfg.RelayConcurrency,
-			RetentionInterval:   cfg.RetentionInterval,
-			SessionRetention:    cfg.SessionRetention,
-			AuditRetention:      cfg.AuditRetention,
-			OutboxRetention:     cfg.OutboxRetention,
+			SessionTTL:             cfg.SessionTTL,
+			InviteTTL:              cfg.InviteTTL,
+			ExportTTL:              cfg.ExportTTL,
+			PublicBaseURL:          cfg.PublicBaseURL,
+			BotProfileCacheTTL:     cfg.BotProfileCacheTTL,
+			BotRPCTimeout:          cfg.BotRPCTimeout,
+			RemindersRPCTimeout:    cfg.RemindersRPCTimeout,
+			SyncFlushTimeout:       cfg.SyncFlushTimeout,
+			AssistantTimeout:       cfg.GigaChatTimeout,
+			AssistantMaxInputChars: cfg.GigaChatMaxInputChars,
+			OutboxBatch:            cfg.OutboxBatch,
+			OutboxLease:            cfg.OutboxLease,
+			RelayInterval:          cfg.RelayInterval,
+			RelayConcurrency:       cfg.RelayConcurrency,
+			RetentionInterval:      cfg.RetentionInterval,
+			SessionRetention:       cfg.SessionRetention,
+			AuditRetention:         cfg.AuditRetention,
+			OutboxRetention:        cfg.OutboxRetention,
 		},
 	})
 	if err := application.LoadCatalog(ctx); err != nil {

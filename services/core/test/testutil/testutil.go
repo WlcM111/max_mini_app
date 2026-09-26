@@ -310,18 +310,21 @@ type Harness struct {
 	Pool      *pgkit.Pool
 	Bot       *FakeBot
 	Reminders *FakeReminders
+	Assistant *FakeAssistant
 	Clock     *Clock
 	Server    *httptest.Server
 	Config    config.Config
 }
 
 // NewHarness собирает core-service поверх изолированной PostgreSQL.
-func NewHarness(t *testing.T) *Harness {
+// Необязательные функции позволяют тесту изменить конфигурацию до сборки.
+func NewHarness(t *testing.T, opts ...func(*config.Config)) *Harness {
 	t.Helper()
 	pool := Pool(t)
 	clock := NewClock(time.Date(2026, 9, 24, 9, 0, 0, 0, time.UTC))
 	bot := NewFakeBot()
 	reminders := NewFakeReminders()
+	assistant := NewFakeAssistant()
 
 	cfg := config.Config{
 		AppEnv: "local", LogLevel: "error", HTTPAddr: ":0", AdminAddr: ":0",
@@ -329,8 +332,9 @@ func NewHarness(t *testing.T) *Harness {
 		SessionTTL: 12 * time.Hour, PublicBaseURL: "http://localhost:8080",
 		HTTPMaxInflight: 64, HandlerTimeout: 5 * time.Second,
 		RateAccountRPS: 1000, RateAccountBurst: 1000, RateSessionPerUser: 1000, RateSessionPerIP: 1000,
-		RateInvitePerMinute: 1000, RateEventsPerMinute: 1000,
-		InviteTTL: 72 * time.Hour, ExportTTL: 10 * time.Minute,
+		RateInvitePerMinute: 1000, RateEventsPerMinute: 1000, RateAssistantPerMin: 1000,
+		GigaChatMaxInputChars: 2000,
+		InviteTTL:             72 * time.Hour, ExportTTL: 10 * time.Minute,
 		OutboxBatch: 50, OutboxLease: time.Minute, RelayInterval: time.Second, RelayConcurrency: 1,
 		RetentionInterval: time.Hour, SessionRetention: 720 * time.Hour,
 		AuditRetention: 4320 * time.Hour, OutboxRetention: 168 * time.Hour,
@@ -342,6 +346,10 @@ func NewHarness(t *testing.T) *Harness {
 		t.Fatalf("проверяющий данных запуска: %v", err)
 	}
 	m := metrics.New()
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	application := app.New(app.Deps{
 		Tx:       pool,
 		Accounts: postgres.NewAccountRepo(pool, m),
@@ -353,7 +361,7 @@ func NewHarness(t *testing.T) *Harness {
 		Exports:  postgres.NewExportRepo(pool, m),
 		Audit:    postgres.NewAuditRepo(pool, m),
 		Outbox:   postgres.NewOutboxRepo(pool, m),
-		Launch:   verifier, Bot: bot, Reminders: reminders,
+		Launch:   verifier, Bot: bot, Reminders: reminders, Assistant: assistant,
 		Clock: clock, Random: randomSource{}, Log: slog.New(slog.NewTextHandler(os.Stderr,
 			&slog.HandlerOptions{Level: slog.LevelError})),
 		Metrics: app.NewMetrics(m),
@@ -362,6 +370,7 @@ func NewHarness(t *testing.T) *Harness {
 			PublicBaseURL: cfg.PublicBaseURL, BotProfileCacheTTL: cfg.BotProfileCacheTTL,
 			BotRPCTimeout: cfg.BotRPCTimeout, RemindersRPCTimeout: cfg.RemindersRPCTimeout,
 			SyncFlushTimeout: cfg.SyncFlushTimeout, OutboxBatch: cfg.OutboxBatch,
+			AssistantTimeout: 2 * time.Second, AssistantMaxInputChars: cfg.GigaChatMaxInputChars,
 			OutboxLease: cfg.OutboxLease, RelayInterval: cfg.RelayInterval,
 			RelayConcurrency: cfg.RelayConcurrency, RetentionInterval: cfg.RetentionInterval,
 			SessionRetention: cfg.SessionRetention, AuditRetention: cfg.AuditRetention,
@@ -374,8 +383,90 @@ func NewHarness(t *testing.T) *Harness {
 	server := httptest.NewServer(httpapi.New(application, cfg, slog.New(slog.NewTextHandler(os.Stderr,
 		&slog.HandlerOptions{Level: slog.LevelError}))).Handler())
 	t.Cleanup(server.Close)
-	return &Harness{App: application, Pool: pool, Bot: bot, Reminders: reminders,
+	return &Harness{App: application, Pool: pool, Bot: bot, Reminders: reminders, Assistant: assistant,
 		Clock: clock, Server: server, Config: cfg}
+}
+
+// FakeAssistant — управляемый двойник языкового ассистента (ADR-032).
+// Обращений к GigaChat в тестах не выполняется.
+type FakeAssistant struct {
+	mu           sync.Mutex
+	draft        ports.DocumentDraft
+	profile      ports.ProfileMatch
+	err          error
+	draftCalls   int
+	profileCalls int
+	lastText     string
+	lastCatalog  ports.AssistantCatalog
+}
+
+// NewFakeAssistant создаёт двойник с пустыми ответами.
+func NewFakeAssistant() *FakeAssistant { return &FakeAssistant{} }
+
+// SetDraft задаёт ответ на разбор текста документа.
+func (f *FakeAssistant) SetDraft(d ports.DocumentDraft) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.draft, f.err = d, nil
+}
+
+// SetProfile задаёт ответ на подбор профиля.
+func (f *FakeAssistant) SetProfile(p ports.ProfileMatch) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.profile, f.err = p, nil
+}
+
+// SetError заставляет ассистента отвечать ошибкой.
+func (f *FakeAssistant) SetError(err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.err = err
+}
+
+// DraftDocument возвращает заданный черновик.
+func (f *FakeAssistant) DraftDocument(_ context.Context, text string, catalog ports.AssistantCatalog) (ports.DocumentDraft, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.draftCalls++
+	f.lastText, f.lastCatalog = text, catalog
+	if f.err != nil {
+		return ports.DocumentDraft{}, f.err
+	}
+	return f.draft, nil
+}
+
+// MatchProfile возвращает заданный профиль.
+func (f *FakeAssistant) MatchProfile(_ context.Context, description string, catalog ports.AssistantCatalog) (ports.ProfileMatch, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.profileCalls++
+	f.lastText, f.lastCatalog = description, catalog
+	if f.err != nil {
+		return ports.ProfileMatch{}, f.err
+	}
+	return f.profile, nil
+}
+
+// Calls возвращает число обращений к обоим методам.
+func (f *FakeAssistant) Calls() (int, int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.draftCalls, f.profileCalls
+}
+
+// LastText возвращает последний переданный текст.
+func (f *FakeAssistant) LastText() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lastText
+}
+
+// LastCatalog возвращает последние переданные списки кодов.
+func (f *FakeAssistant) LastCatalog() ports.AssistantCatalog {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lastCatalog
 }
 
 type randomSource struct{}

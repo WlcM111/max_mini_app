@@ -4,6 +4,7 @@ import {
   type Catalog,
   type Me,
   type Organization,
+  type ProfileMatch,
   type OrganizationCreate,
   type OrganizationUpdate,
   type Suggestion,
@@ -47,3 +48,10 @@ export const listSuggestions = (organizationId: string): Promise<Suggestion[]> =
       signal,
     }),
   ).then((result) => result.items);
+
+/**
+ * Подбор вида деятельности и признаков по свободному описанию бизнеса (FR-22).
+ * Возвращает только коды справочника; организацию не создаёт и не изменяет.
+ */
+export const matchProfile = (description: string): Promise<ProfileMatch> =>
+  run(({ headers, signal }) => client.POST('/profile-match', { body: { description }, headers, signal }));
