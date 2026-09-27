@@ -245,7 +245,10 @@ services:
     environment:
       EDGE_SITE_ADDRESS: ${EDGE_SITE_ADDRESS:-:80}
       ACME_EMAIL: ${ACME_EMAIL:-devonly@localhost}
-      EDGE_FRAME_ANCESTORS: ${EDGE_FRAME_ANCESTORS:-'self' https://max.ru https://*.max.ru}
+      # Директива встраивания целиком: клиенты MAX на разных платформах открывают
+      # приложение из разных источников, а десктопный — из непрозрачного источника,
+      # который не выражается списком. Пустое значение снимает ограничение.
+      EDGE_FRAME_DIRECTIVE: ${EDGE_FRAME_DIRECTIVE:-frame-ancestors 'self' https://max.ru https://*.max.ru}
     volumes:
       - caddy_data:/data
       - caddy_config:/config

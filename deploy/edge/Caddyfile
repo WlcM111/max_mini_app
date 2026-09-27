@@ -15,8 +15,11 @@
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "no-referrer"
+		# Клиент MAX открывает мини-приложение из другого источника: без этого
+		# заголовка клиент с изоляцией источников отвергает ответ (ERR_BLOCKED_BY_RESPONSE).
+		Cross-Origin-Resource-Policy "cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
-		Content-Security-Policy "default-src 'self'; script-src 'self' https://st.max.ru; connect-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors {$EDGE_FRAME_ANCESTORS}"
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://st.max.ru; connect-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; {$EDGE_FRAME_DIRECTIVE}"
 		-Server
 	}
 
