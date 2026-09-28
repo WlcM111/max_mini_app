@@ -73,6 +73,7 @@ export function FeaturesPage() {
 
   return (
     <AppShell
+      layout="split"
       title="Что относится к вам"
       subtitle="От ответов зависит список нужных документов. Изменить их можно позже в профиле организации."
       headerExtra={steps}

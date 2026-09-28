@@ -2,7 +2,7 @@
 
 /* ---------- каркас ---------- */
 .app-root { min-height: 100vh; min-height: 100dvh; }
-.app-root[data-nav='true'] { --tabbar-h: calc(62px + var(--sab)); }
+.app-root[data-nav='tabs'] { --tabbar-h: calc(62px + var(--sab)); }
 
 .shell {
   position: relative;
@@ -184,8 +184,9 @@
 .tabbar__label { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .tabbar__item[aria-current='page'] { color: var(--accent); }
 
-@media (min-width: 960px) {
-  .app-root[data-nav='true'] { --tabbar-h: 0px; --rail: 248px; }
+@media (min-width: 1024px) {
+  .app-root[data-nav='tabs'],
+  .app-root[data-nav='inner'] { --tabbar-h: 0px; --rail: 272px; }
   .tabbar {
     top: 0;
     right: auto;
@@ -624,12 +625,12 @@ input[type='date'].control__input::-webkit-calendar-picker-indicator {
 .leaf__year { margin-top: 2px; font-size: 9px; font-weight: 700; line-height: 1; color: var(--ink-3); letter-spacing: 0.02em; }
 .leaf--year .leaf__day { margin-top: 5px; font-size: 19px; }
 .leaf__inf { margin-top: 7px; color: var(--ink-3); }
-.leaf--expired { --leaf: #d8342b; }
-.leaf--expiring { --leaf: #f0a012; --leaf-ink: #3d2600; }
+.leaf--expired { --leaf: var(--st-expired); }
+.leaf--expiring { --leaf: var(--st-expiring); --leaf-ink: #2e1d00; }
 .leaf--expiring::before,
 .leaf--expiring::after { background: rgba(61, 38, 0, 0.35); }
-.leaf--valid { --leaf: #1f8f59; }
-.leaf--no_expiry { --leaf: #8a93a8; }
+.leaf--valid { --leaf: var(--st-valid); }
+.leaf--no_expiry { --leaf: var(--st-none); }
 .leaf--l { width: 84px; height: 94px; border-radius: 18px; }
 .leaf--l::before,
 .leaf--l::after { top: 9px; width: 6px; height: 6px; }
@@ -897,7 +898,7 @@ input[type='date'].control__input::-webkit-calendar-picker-indicator {
 .empty__glyph--danger { background: var(--st-expired-soft); color: var(--st-expired-ink); }
 /* Низкий экран (альбомная ориентация): компактная навигация, кнопка «+» без подписи. */
 @media (max-height: 480px) {
-  .app-root[data-nav='true'] { --tabbar-h: calc(50px + var(--sab)); }
+  .app-root[data-nav='tabs'] { --tabbar-h: calc(50px + var(--sab)); }
   .tabbar { padding-top: 3px; }
   .tabbar__item { height: 44px; gap: 1px; }
   .tabbar__icon, .tabbar__pill { height: 28px; }

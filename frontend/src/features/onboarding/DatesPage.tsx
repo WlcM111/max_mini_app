@@ -141,6 +141,7 @@ export function DatesPage() {
 
   return (
     <AppShell
+      layout="split"
       title="Сроки документов"
       subtitle="Дату можно не указывать — вернётесь к ней позже в карточке документа."
       headerExtra={steps}

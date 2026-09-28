@@ -1,0 +1,155 @@
+/* Раскладка под ширину окна: телефон, планшет, MAX для компьютера во весь экран, веб-версия MAX.
+   Переключается по ширине окна в CSS-пикселях (с учётом масштаба Windows/macOS), а не по устройству. */
+
+.shell > .page { max-width: calc(var(--page-max) + 2 * var(--gutter)); }
+.shell--wide,
+.shell--columns { --page-max: var(--wide); }
+.shell--split { --page-max: 1180px; }
+.page-head__actions { display: none; }
+.tabbar__add,
+.tabbar__account { display: none; }
+.dash__calendar { display: none; }
+
+/* ---------- телефон и узкое окно: плавающая нижняя панель ---------- */
+@media (max-width: 1023.98px) {
+  .app-root[data-nav='tabs'] { --tabbar-h: calc(88px + var(--sab)); }
+  .app-root[data-nav='inner'] .tabbar { display: none; }
+  .tabbar {
+    left: calc(12px + var(--sal));
+    right: calc(12px + var(--sar));
+    bottom: calc(12px + var(--sab));
+    height: 66px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: var(--shadow-float);
+  }
+  .tabbar__item { height: 54px; }
+}
+@media (max-width: 1023.98px) and (max-height: 480px) {
+  .app-root[data-nav='tabs'] { --tabbar-h: calc(70px + var(--sab)); }
+  .tabbar { height: 54px; bottom: calc(8px + var(--sab)); padding: 3px 8px; }
+  .tabbar__item { height: 46px; }
+}
+
+/* ---------- от 820 px: формы, карточка, настройки — в две колонки ---------- */
+@media (min-width: 820px) {
+  .shell--columns > .page { display: block; columns: 2 320px; column-gap: 24px; }
+  .shell--columns > .page > * { break-inside: avoid; margin: 0 0 20px; }
+  .shell--columns > .page > .page-head,
+  .shell--columns > .page > .banners { column-span: all; margin-bottom: 24px; }
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+}
+
+/* ---------- от 1024 px: компьютер — боковое меню на всех экранах организации ---------- */
+@media (min-width: 1024px) {
+  :root { --wide: 1240px; }
+  .app-root[data-nav='inner'] .tabbar { display: flex; }
+  .app-root[data-nav='tabs'] .fab,
+  .app-root[data-nav='inner'] .fab { display: none; }
+
+  .page { padding-top: 36px; gap: 24px; }
+  .page-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; align-items: start; }
+  .page-head > * { grid-column: 1; }
+  .page-head__actions { grid-column: 2; grid-row: 1 / span 4; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+  /* Боковое меню */
+  .tabbar {
+    background: var(--bg-2);
+    border-right: 1px solid var(--line);
+    gap: 16px;
+    padding: calc(22px + var(--sat)) 16px 18px calc(16px + var(--sal));
+  }
+  .tabbar__brand {
+    display: flex; align-items: center; gap: 12px; min-width: 0; padding: 6px 8px; margin: 0 -2px;
+    border: 0; border-radius: 14px; background: transparent; color: inherit; text-align: left; cursor: pointer;
+    transition: background-color var(--t-fast);
+  }
+  .tabbar__brand:hover { background: var(--surface-3); }
+  .tabbar__add { display: inline-flex; width: 100%; }
+  .tabbar__inner { gap: 2px; }
+  .tabbar__item { height: 44px; color: var(--ink-2); }
+  .tabbar__item[aria-current='page'] { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-card); }
+  .tabbar__item:hover:not([aria-current='page']) { background: var(--surface-3); }
+  .tabbar__account {
+    display: flex; align-items: center; gap: 10px; margin-top: auto; padding: 8px; min-height: 52px;
+    border: 0; border-radius: 14px; background: transparent; color: inherit; text-align: left; cursor: pointer;
+  }
+  .tabbar__account:hover { background: var(--surface-3); }
+  .tabbar__account .avatar { width: 36px; height: 36px; font-size: 0.8125rem; }
+  .tabbar__account-text { display: flex; flex-direction: column; min-width: 0; }
+  .tabbar__account-name { font-weight: 600; font-size: var(--fs-sm); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .tabbar__account-hint { font-size: var(--fs-2xs); color: var(--ink-3); }
+
+  /* Онбординг и приветствие: две половины экрана */
+  .shell--split > .page {
+    display: grid;
+    grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+    column-gap: clamp(40px, 5vw, 96px);
+    row-gap: 20px;
+    align-items: start;
+    padding-top: 56px;
+  }
+  .shell--split > .page > .page-head,
+  .shell--split > .page > .welcome { grid-column: 1; grid-row: 1 / span 40; position: sticky; top: 40px; }
+  .shell--split > .page > :not(.page-head):not(.welcome) { grid-column: 2; min-width: 0; }
+  .shell--split .page-title { font-size: clamp(2rem, 1.3rem + 1.6vw, 2.75rem); }
+  .shell--split .steps__bar { max-width: none; }
+  .welcome__title { font-size: clamp(2.5rem, 1.5rem + 2.4vw, 3.6rem); max-width: 11ch; }
+  .preview { max-width: none; }
+
+  /* Кнопки действий — плавающая панель справа, по краю содержимого */
+  .actionbar {
+    background: none;
+    border-top: 0;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    pointer-events: none;
+    padding: 8px calc(var(--gutter) + var(--sar)) calc(20px + var(--sab)) calc(var(--gutter) + var(--sal));
+  }
+  .actionbar__inner {
+    pointer-events: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 max(0px, calc((100% - var(--page-max)) / 2)) 0 auto;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: var(--glass);
+    -webkit-backdrop-filter: saturate(1.6) blur(20px);
+    backdrop-filter: saturate(1.6) blur(20px);
+    box-shadow: var(--shadow-float);
+  }
+  .actionbar__row { display: contents; }
+  .actionbar__inner .btn { width: auto; min-width: 168px; order: 2; }
+  .actionbar__inner .btn--primary,
+  .actionbar__inner .btn--danger { order: 3; }
+  .actionbar__note { order: 1; max-width: 440px; margin-right: 8px; }
+
+  /* Реестр: поиск и фильтры в одну строку, карточки сеткой */
+  .tools { flex-direction: row; align-items: center; gap: 16px; margin: -8px 0 0; padding: 8px 0 12px; }
+  .tools > .field { flex: 0 1 380px; }
+  .tools .chips--scroll { flex: 1 1 auto; flex-wrap: wrap; overflow: visible; margin: 0; padding: 2px 0; }
+  .list--grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+
+  /* Главная */
+  .dash { grid-template-columns: minmax(320px, 4fr) minmax(0, 7fr); gap: 32px; }
+  .health { padding: 24px; }
+  .health__lead { font-size: 1.375rem; }
+}
+
+/* ---------- от 1440 px: широкий монитор — третья колонка с календарём на главной ---------- */
+@media (min-width: 1440px) {
+  :root { --wide: 1440px; }
+  .dash { grid-template-columns: minmax(320px, 4fr) minmax(0, 6fr) minmax(320px, 4fr); }
+  .dash__calendar { display: block; position: sticky; top: calc(var(--topbar-h) + var(--sat) + 16px); min-width: 0; }
+  .calendar--compact .calendar__list { display: none; }
+}
+
+/* Переключатели в шапке не растягиваются на всю ширину */
+.page-head > .view-switch { justify-self: start; }

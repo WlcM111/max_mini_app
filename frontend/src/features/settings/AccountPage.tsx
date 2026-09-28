@@ -11,6 +11,7 @@ import { toast } from '../../shared/ui/Toast';
 import { initials, platformTitle } from '../../shared/lib/format';
 import { clearLastOrganization } from '../../session/sessionStore';
 import { useSession } from '../../session/useSession';
+import { layoutName, useViewport } from '../../shared/lib/useViewport';
 import { deleteAccount } from './api';
 
 /** Аккаунт: сведения о пользователе, выход и удаление данных (FR-15, NFR-06). */
@@ -40,9 +41,12 @@ export function AccountPage() {
   });
 
   const fullName = [me.account.first_name, me.account.last_name].filter(Boolean).join(' ');
+  const view = useViewport();
+  // Версия клиента и устройство — из MAX Bridge (помогают понять, почему раскладка разная).
+  const client = (window as { WebApp?: { version?: string; deviceName?: string } }).WebApp;
 
   return (
-    <AppShell title="Аккаунт">
+    <AppShell title="Аккаунт" layout="columns">
       <section className="profile-card">
         <Avatar text={initials(me.account.first_name, me.account.last_name)} seed={me.account.id} size="l" />
         <div className="profile-card__text">
@@ -58,7 +62,20 @@ export function AccountPage() {
           <KeyValue label="Организаций" value={`${me.memberships.length} из ${me.limits.max_organizations}`} />
           <KeyValue label="Платформа" value={platformTitle(platform)} />
           <KeyValue label="Версия приложения" value={import.meta.env.VITE_APP_VERSION ?? 'dev'} />
+          <KeyValue label="Версия MAX" value={client?.version} />
+          <KeyValue label="Устройство" value={client?.deviceName} />
         </div>
+      </section>
+      <section className="group" aria-labelledby="account-view-title">
+        <h2 className="group__title" id="account-view-title">
+          Экран
+        </h2>
+        <div className="group__card">
+          <KeyValue label="Окно" value={`${view.width} × ${view.height}`} />
+          <KeyValue label="Масштаб экрана" value={`${Math.round(view.dpr * 100)} %`} />
+          <KeyValue label="Раскладка" value={layoutName(view.width)} />
+        </div>
+        <p className="group__foot">Размер окна — в CSS-пикселях: физическая ширина делённая на масштаб экрана. Боковое меню включается от 1024.</p>
       </section>
       <ModelDataBadge />
       <section className="group" aria-label="Выход и удаление">

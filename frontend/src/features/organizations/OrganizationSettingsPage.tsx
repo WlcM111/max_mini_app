@@ -100,6 +100,7 @@ export function OrganizationSettingsPage() {
 
   return (
     <AppShell
+      layout="columns"
       title="Профиль организации"
       subtitle="От профиля зависит подбор типовых документов"
       actionsNote={

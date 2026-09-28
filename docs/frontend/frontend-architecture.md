@@ -79,7 +79,7 @@ frontend/
   src/features/system/NotInMaxPage.tsx, LaunchErrorPage.tsx, NotFoundPage.tsx
   src/shared/ui/AppShell.tsx, StatusBadge.tsx, StateViews.tsx, DateField.tsx, OffsetChips.tsx, ConfirmDialog.tsx, ModelDataBadge.tsx
   src/shared/lib/dates.ts, uuid.ts, validation.ts, plural.ts, telemetry.ts, storage.ts
-  src/shared/styles/app.css
+  src/shared/styles/tokens.css, base.css, components.css, pages.css, layout.css, fonts/vv-numerals.woff
   src/test/setup.ts, fixtures.ts, msw/handlers.ts, msw/server.ts
   тесты: src/shared/lib/dates.test.ts, validation.test.ts; src/features/documents/documentForm.test.ts, DocumentsPage.test.tsx; src/platform/max/bridge.test.ts; src/app/router.test.tsx
   e2e/launch.spec.ts, documents.spec.ts, members.spec.ts, network.spec.ts

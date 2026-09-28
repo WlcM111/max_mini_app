@@ -128,6 +128,7 @@ export function RenewPage() {
 
   return (
     <AppShell
+      layout="columns"
       title="Продление"
       subtitle={doc.title}
       actionsNote={

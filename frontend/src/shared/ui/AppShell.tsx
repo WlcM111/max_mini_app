@@ -18,6 +18,10 @@ interface Props {
   fab?: ReactNode;
   wide?: boolean;
   bare?: boolean;
+  /** columns — две колонки от 820 px; split — две половины экрана от 1024 px (онбординг). */
+  layout?: 'stack' | 'columns' | 'split';
+  /** Кнопки в шапке экрана на компьютере (на телефоне их роль играет плавающая кнопка). */
+  headerActions?: ReactNode;
   children: ReactNode;
 }
 
@@ -40,6 +44,8 @@ export function AppShell({
   fab,
   wide = false,
   bare = false,
+  layout = 'stack',
+  headerActions,
   children,
 }: Props) {
   const pageRef = useRef<HTMLElement>(null);
@@ -73,7 +79,7 @@ export function AppShell({
 
   return (
     <div
-      className={cx('shell', wide && 'shell--wide', fab ? 'shell--fab' : null, back ? 'shell--backbar' : null)}
+      className={cx('shell', wide && 'shell--wide', layout !== 'stack' && `shell--${layout}`, fab ? 'shell--fab' : null, back ? 'shell--backbar' : null)}
       data-scrolled={scrolled ? 'true' : 'false'}
     >
       <div className="topbar" data-layer="top">
@@ -110,6 +116,7 @@ export function AppShell({
             )}
             {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
             {headerExtra}
+            {headerActions ? <div className="page-head__actions">{headerActions}</div> : null}
           </header>
         )}
         {banners ? <div className="banners">{banners}</div> : null}

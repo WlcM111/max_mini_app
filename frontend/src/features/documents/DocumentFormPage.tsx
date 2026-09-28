@@ -265,6 +265,7 @@ export function DocumentFormPage({ mode }: Props) {
 
   return (
     <AppShell
+      layout="columns"
       title={title}
       subtitle={mode === 'edit' ? existing.data?.title : undefined}
       actionsNote={

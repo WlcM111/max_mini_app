@@ -134,7 +134,7 @@ export function SettingsPage() {
   };
 
   return (
-    <AppShell title="Настройки" subtitle={organization.data.name}>
+    <AppShell title="Настройки" subtitle={organization.data.name} layout="columns">
       <section className="group" aria-labelledby="notify-title">
         <h2 className="group__title" id="notify-title">
           Мои напоминания

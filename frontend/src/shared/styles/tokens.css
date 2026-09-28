@@ -1,4 +1,4 @@
-/* Дизайн-токены «Вовремя»: бумага и чернила, цвета статусов срока, шкалы размеров и движения. */
+/* Дизайн-токены «Вовремя»: бумага и хвоя, цвета статусов срока, шкалы размеров и движения. */
 @font-face {
   font-family: 'VV Numerals';
   src: url('./fonts/vv-numerals.woff') format('woff');
@@ -14,62 +14,65 @@
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
 
-  --bg: #eff1f6;
-  --surface: #ffffff;
-  --surface-2: #f5f6fa;
-  --surface-3: #e8ebf2;
-  --glass: rgba(245, 246, 250, 0.84);
-  --ink: #141a2c;
-  --ink-2: #4a5367;
-  --ink-3: #7a8296;
-  --line: #e2e5ed;
-  --line-2: #d0d5e0;
+  /* Бумага и хвоя: тёплый фон, зелёный акцент в тон логотипу */
+  --bg: #f3f2ec;
+  --bg-2: #ebe9e1;
+  --surface: #fffefa;
+  --surface-2: #f7f6f0;
+  --surface-3: #ecebe3;
+  --glass: rgba(250, 249, 244, 0.84);
+  --ink: #16201b;
+  --ink-2: #4a554f;
+  --ink-3: #78827c;
+  --line: #e3e1d8;
+  --line-2: #d2cfc4;
 
-  --accent: #2e47d1;
-  --accent-fill: #2e47d1;
-  --accent-fill-press: #2438b3;
-  --accent-soft: #e8ecff;
-  --accent-soft-2: #d8e0ff;
+  --accent: #1b7a54;
+  --accent-fill: #1b7a54;
+  --accent-fill-press: #145f41;
+  --accent-soft: #e2f0e7;
+  --accent-soft-2: #cde5d7;
   --on-accent: #ffffff;
-  --focus: rgba(46, 71, 209, 0.3);
+  --focus: rgba(27, 122, 84, 0.28);
 
-  --st-expired: #d8342b;
-  --st-expired-soft: #fdebe9;
-  --st-expired-ink: #b0231b;
-  --st-expiring: #f0a012;
-  --st-expiring-soft: #fff2d6;
-  --st-expiring-ink: #8a4d00;
-  --st-valid: #23995f;
-  --st-valid-soft: #e1f3e9;
-  --st-valid-ink: #11653e;
-  --st-none: #8993a8;
-  --st-none-soft: #eceff5;
-  --st-none-ink: #4b5467;
+  --st-expired: #cf3f2e;
+  --st-expired-soft: #fae8e3;
+  --st-expired-ink: #a52c1d;
+  --st-expiring: #d48a06;
+  --st-expiring-soft: #fcf0d6;
+  --st-expiring-ink: #7f4f06;
+  --st-valid: #2a9463;
+  --st-valid-soft: #e2f2e8;
+  --st-valid-ink: #1a6843;
+  --st-none: #8a918c;
+  --st-none-soft: #edece6;
+  --st-none-ink: #505853;
 
-  --shadow-card: 0 1px 2px rgba(20, 26, 44, 0.05), 0 0 0 1px rgba(20, 26, 44, 0.045);
-  --shadow-raise: 0 8px 22px -14px rgba(20, 26, 44, 0.45), 0 0 0 1px rgba(20, 26, 44, 0.06);
-  --shadow-float: 0 14px 30px -12px rgba(20, 26, 44, 0.42), 0 3px 8px -2px rgba(20, 26, 44, 0.14);
-  --shadow-sheet: 0 -18px 48px -18px rgba(12, 16, 30, 0.4);
+  --shadow-card: 0 1px 2px rgba(22, 32, 27, 0.05), 0 0 0 1px rgba(22, 32, 27, 0.055);
+  --shadow-raise: 0 12px 28px -16px rgba(22, 32, 27, 0.42), 0 0 0 1px rgba(22, 32, 27, 0.06);
+  --shadow-float: 0 20px 44px -18px rgba(22, 32, 27, 0.4), 0 4px 12px -4px rgba(22, 32, 27, 0.12);
+  --shadow-sheet: 0 -18px 48px -18px rgba(10, 16, 13, 0.4);
 
-  --r-xl: 24px;
+  --r-xl: 26px;
   --r-lg: 20px;
   --r-md: 14px;
   --r-sm: 10px;
 
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-num: 'VV Numerals', var(--font-display);
 
-  --gutter: clamp(14px, 2.6vw + 6px, 32px);
+  --gutter: clamp(14px, 2.4vw + 6px, 40px);
   --col: 680px;
   --wide: 1120px;
   --rail: 0px;
   --tabbar-h: 0px;
   --topbar-h: 48px;
+  --page-max: var(--col);
 
-  --fs-display: clamp(1.75rem, 1.3rem + 1.9vw, 2.5rem);
-  --fs-title: clamp(1.625rem, 1.3rem + 1.35vw, 2.125rem);
-  --fs-h2: clamp(1.125rem, 1.06rem + 0.3vw, 1.3125rem);
+  --fs-display: clamp(1.75rem, 1.2rem + 2.2vw, 3rem);
+  --fs-title: clamp(1.625rem, 1.25rem + 1.4vw, 2.375rem);
+  --fs-h2: clamp(1.125rem, 1.04rem + 0.35vw, 1.375rem);
   --fs-body: 1rem;
   --fs-sm: 0.875rem;
   --fs-xs: 0.8125rem;
@@ -84,41 +87,43 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #0c101b;
-    --surface: #161b2a;
-    --surface-2: #1c2234;
-    --surface-3: #252c41;
-    --glass: rgba(16, 21, 34, 0.84);
-    --ink: #edf0f8;
-    --ink-2: #b1b8ca;
-    --ink-3: #848ca1;
-    --line: #252c40;
-    --line-2: #343c55;
+    /* Глубокая хвоя: зелёно-чёрный фон, мятный акцент с тёмным текстом */
+    --bg: #0d1411;
+    --bg-2: #111a16;
+    --surface: #151e1a;
+    --surface-2: #1a2520;
+    --surface-3: #22302a;
+    --glass: rgba(15, 23, 19, 0.84);
+    --ink: #eaf1ec;
+    --ink-2: #adbdb4;
+    --ink-3: #7e8f86;
+    --line: #22302a;
+    --line-2: #2f3f37;
 
-    --accent: #93a2ff;
-    --accent-fill: #5065f2;
-    --accent-fill-press: #4357de;
-    --accent-soft: #212a52;
-    --accent-soft-2: #2b3667;
-    --on-accent: #ffffff;
-    --focus: rgba(147, 162, 255, 0.38);
+    --accent: #6fd3a6;
+    --accent-fill: #58c896;
+    --accent-fill-press: #46b784;
+    --accent-soft: #173027;
+    --accent-soft-2: #1f3e32;
+    --on-accent: #06140d;
+    --focus: rgba(111, 211, 166, 0.34);
 
-    --st-expired: #f0605a;
-    --st-expired-soft: #3a1c1e;
-    --st-expired-ink: #ffb0a9;
-    --st-expiring: #f2a93b;
-    --st-expiring-soft: #3a2b12;
-    --st-expiring-ink: #ffd08e;
-    --st-valid: #3fb67c;
-    --st-valid-soft: #13301f;
-    --st-valid-ink: #97e3b9;
-    --st-none: #6e788e;
-    --st-none-soft: #232a3c;
-    --st-none-ink: #c4cad8;
+    --st-expired: #f06a5b;
+    --st-expired-soft: #3a1d19;
+    --st-expired-ink: #ffb2a7;
+    --st-expiring: #f0b03c;
+    --st-expiring-soft: #3a2c11;
+    --st-expiring-ink: #ffd48c;
+    --st-valid: #4cc38a;
+    --st-valid-soft: #133222;
+    --st-valid-ink: #9de8c2;
+    --st-none: #7a847f;
+    --st-none-soft: #232d28;
+    --st-none-ink: #c7d0cb;
 
     --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.045);
-    --shadow-raise: 0 10px 24px -14px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06);
-    --shadow-float: 0 16px 32px -12px rgba(0, 0, 0, 0.75), 0 3px 8px rgba(0, 0, 0, 0.45);
+    --shadow-raise: 0 12px 26px -14px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --shadow-float: 0 20px 40px -14px rgba(0, 0, 0, 0.8), 0 4px 10px rgba(0, 0, 0, 0.45);
     --shadow-sheet: 0 -18px 48px -18px rgba(0, 0, 0, 0.8);
   }
 }

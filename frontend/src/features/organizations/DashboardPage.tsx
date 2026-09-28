@@ -18,6 +18,8 @@ import { setLastOrganization } from '../../session/sessionStore';
 import { listDocuments } from '../documents/api';
 import { DocumentListItem } from '../documents/DocumentListItem';
 import { useMemberNames } from '../members/useMemberNames';
+import { DeadlineCalendar } from '../documents/DeadlineCalendar';
+import { useMediaQuery } from '../../shared/lib/useViewport';
 import { getCatalog, getOrganization } from './api';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 
@@ -89,6 +91,7 @@ export function DashboardPage() {
   const canEdit = roleAllows(role, 'editor');
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [mine, setMine] = useState(false);
+  const wideScreen = useMediaQuery('(min-width: 1440px)');
 
   useEffect(() => {
     if (orgId) setLastOrganization(orgId);
@@ -235,6 +238,17 @@ export function DashboardPage() {
             </div>
           ) : null}
         </section>
+        {wideScreen ? (
+          <aside className="dash__calendar" aria-label="Календарь сроков">
+            <DeadlineCalendar
+              compact
+              organizationId={orgId}
+              timezone={org.timezone}
+              onOpen={(id) => navigate(`/d/${id}`)}
+              onPickDay={() => navigate(`/o/${orgId}/documents?view=calendar`, { state: { fromHome: true } })}
+            />
+          </aside>
+        ) : null}
       </div>
       <OrganizationSwitcher open={switcherOpen} organizationId={orgId} onClose={() => setSwitcherOpen(false)} />
     </AppShell>

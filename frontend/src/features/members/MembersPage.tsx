@@ -82,9 +82,17 @@ export function MembersPage() {
 
   return (
     <AppShell
+      layout="columns"
       title="Участники"
       subtitle={organizationName}
       fab={isOwner ? <Fab icon="user-plus" label="Пригласить" onClick={() => navigate(`/o/${orgId}/invite`)} /> : null}
+      headerActions={
+        isOwner ? (
+          <Button icon="user-plus" onClick={() => navigate(`/o/${orgId}/invite`)}>
+            Пригласить
+          </Button>
+        ) : undefined
+      }
     >
       {members.isLoading ? <LoadingView rows={3} /> : null}
       {members.isError ? <ErrorView error={members.error} onRetry={() => void members.refetch()} /> : null}

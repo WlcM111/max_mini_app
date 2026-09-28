@@ -107,6 +107,7 @@ export function OrganizationFormPage() {
 
   return (
     <AppShell
+      layout="split"
       title="Ваша организация"
       headerExtra={steps}
       actions={

@@ -47,10 +47,13 @@ interface Props {
   organizationId: string;
   timezone: string;
   onOpen: (id: string) => void;
+  /** Только сетка месяца — для третьей колонки главной на широком мониторе. */
+  compact?: boolean;
+  onPickDay?: (day: string) => void;
 }
 
 /** Календарь сроков: месяц листками, под ним — документы выбранного дня или месяца. */
-export function DeadlineCalendar({ organizationId, timezone, onOpen }: Props) {
+export function DeadlineCalendar({ organizationId, timezone, onOpen, compact = false, onPickDay }: Props) {
   const today = todayInTimeZone(timezone);
   const [month, setMonth] = useState(today.slice(0, 7));
   const [direction, setDirection] = useState<'next' | 'prev' | 'none'>('none');
@@ -90,13 +93,13 @@ export function DeadlineCalendar({ organizationId, timezone, onOpen }: Props) {
   };
 
   return (
-    <section className="calendar" aria-labelledby="calendar-title">
+    <section className={cx('calendar', compact && 'calendar--compact')} aria-labelledby={compact ? 'calendar-mini-title' : 'calendar-title'}>
       <div className="calendar__panel">
         <div className="calendar__head">
           <button type="button" className="icon-btn" aria-label="Предыдущий месяц" onClick={() => go(-1)}>
             <Icon name="chevron-left" size={22} />
           </button>
-          <h2 className="calendar__title" id="calendar-title" aria-live="polite">
+          <h2 className="calendar__title" id={compact ? 'calendar-mini-title' : 'calendar-title'} aria-live="polite">
             {MONTHS[monthNumber - 1]} {year}
           </h2>
           <button type="button" className="icon-btn" aria-label="Следующий месяц" onClick={() => go(1)}>
@@ -129,7 +132,7 @@ export function DeadlineCalendar({ organizationId, timezone, onOpen }: Props) {
                 className={cx(state, `calendar__cell--${worst}`)}
                 aria-pressed={selected === day}
                 aria-label={`${number} ${MONTHS_GEN[monthNumber - 1] ?? ''}: ${items.length} ${plural(items.length, DOCS)}`}
-                onClick={() => setSelected((current) => (current === day ? null : day))}
+                onClick={() => (onPickDay ? onPickDay(day) : setSelected((current) => (current === day ? null : day)))}
               >
                 <span className="calendar__day">{number}</span>
                 <span className="calendar__mark" aria-hidden="true">

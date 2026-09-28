@@ -86,6 +86,12 @@ export function DocumentsPage() {
     setSearchParams(params, { replace: true, state: location.state });
   };
 
+  const importAction = canEdit ? (
+    <Button variant="secondary" icon="upload" onClick={() => navigate(`/o/${orgId}/documents/import`)}>
+      Импорт из Excel
+    </Button>
+  ) : undefined;
+
   const viewSwitch = (
     <div className="segmented view-switch" role="group" aria-label="Вид реестра">
       <button type="button" className="segmented__btn" aria-pressed={view === 'list'} onClick={() => setView('list')}>
@@ -105,6 +111,7 @@ export function DocumentsPage() {
         title="Документы"
         subtitle={organizationName}
         headerExtra={viewSwitch}
+        headerActions={importAction}
         wide
         fab={canEdit ? <Fab icon="plus" label="Добавить документ" onClick={() => navigate(`/o/${orgId}/documents/new`)} /> : null}
       >
@@ -118,6 +125,7 @@ export function DocumentsPage() {
       title="Документы"
       subtitle={organizationName}
       headerExtra={viewSwitch}
+      headerActions={importAction}
       wide
       fab={canEdit ? <Fab icon="plus" label="Добавить документ" onClick={() => navigate(`/o/${orgId}/documents/new`)} /> : null}
     >

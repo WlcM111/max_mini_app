@@ -60,6 +60,7 @@ export function InvitePage() {
 
   return (
     <AppShell
+      layout="columns"
       title="Пригласить участника"
       subtitle={organizationName}
       actions={

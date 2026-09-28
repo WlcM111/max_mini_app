@@ -4,6 +4,7 @@ import './shared/styles/tokens.css';
 import './shared/styles/base.css';
 import './shared/styles/components.css';
 import './shared/styles/pages.css';
+import './shared/styles/layout.css';
 import { App } from './app/App';
 import { ErrorBoundary } from './app/ErrorBoundary';
 import { flushTelemetry } from './shared/lib/telemetry';

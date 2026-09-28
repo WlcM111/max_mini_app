@@ -135,6 +135,7 @@ export function ImportPage() {
 
   return (
     <AppShell
+      layout="columns"
       title="Импорт из Excel"
       subtitle={organizationName}
       actionsNote={

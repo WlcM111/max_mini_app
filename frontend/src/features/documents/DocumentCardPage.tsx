@@ -184,7 +184,7 @@ export function DocumentCardPage() {
   ) : undefined;
 
   return (
-    <AppShell title={doc.title} subtitle={typeTitle && typeTitle !== doc.title ? typeTitle : undefined} actions={actions}>
+    <AppShell title={doc.title} subtitle={typeTitle && typeTitle !== doc.title ? typeTitle : undefined} actions={actions} layout="columns">
       <DocHero doc={doc} timezone={timezone} />
 
       <section className="group" aria-labelledby="reminders-title">

@@ -19,6 +19,7 @@ export function WelcomePage() {
   const today = todayInTimeZone('Europe/Moscow');
   return (
     <AppShell
+      layout="split"
       title="Вовремя"
       bare
       actions={

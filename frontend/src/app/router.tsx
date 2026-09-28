@@ -2,7 +2,8 @@ import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { Navigate, Outlet, RouterProvider, createMemoryRouter, useLocation, useNavigate, useNavigationType } from 'react-router';
 import { hasSystemBackButton, hideBackButton, showBackButton } from '../platform/max/backButton';
 import { getLastOrganization } from '../session/sessionStore';
-import { useSession } from '../session/useSession';
+import { roleAllows, useRole, useSession } from '../session/useSession';
+import { initials } from '../shared/lib/format';
 import { setNavDirection } from '../shared/lib/navDirection';
 import { AppShell } from '../shared/ui/AppShell';
 import { BackContext } from '../shared/ui/backContext';
@@ -60,15 +61,20 @@ function RootLayout() {
   const { me } = useSession();
   const isRoot = ROOT_PATTERNS.some((pattern) => pattern.test(location.pathname));
   const tabMatch = TAB_PATTERN.exec(location.pathname);
-  const activeTab: TabId | null = tabMatch ? ((tabMatch[2] as TabId | undefined) ?? 'home') : null;
-  const orgId = tabMatch?.[1] ?? '';
+  const tabRoot: TabId | null = tabMatch ? ((tabMatch[2] as TabId | undefined) ?? 'home') : null;
+  // На компьютере меню видно и на вложенных экранах: раздел определяется по адресу.
+  const activeTab: TabId | null = tabRoot ?? sectionOf(location.pathname);
+  const orgId = tabMatch?.[1] ?? /^\/o\/([^/]+)/.exec(location.pathname)?.[1] ?? getLastOrganization() ?? me.memberships[0]?.organization_id ?? '';
+  const hasOrg = me.memberships.some((item) => item.organization_id === orgId);
+  const navMode = tabRoot ? 'tabs' : activeTab && hasOrg ? 'inner' : 'none';
+  const canAdd = roleAllows(useRole(orgId), 'editor');
 
   // Направление перехода задаётся до рендера нового экрана.
-  const previous = useRef<{ key: string; tab: TabId | null }>({ key: location.key, tab: activeTab });
+  const previous = useRef<{ key: string; tab: TabId | null }>({ key: location.key, tab: tabRoot });
   if (previous.current.key !== location.key) {
-    const tabSwitch = previous.current.tab !== null && activeTab !== null;
+    const tabSwitch = previous.current.tab !== null && tabRoot !== null;
     setNavDirection(tabSwitch ? 'fade' : navigationType === 'POP' ? 'back' : navigationType === 'PUSH' ? 'forward' : 'fade');
-    previous.current = { key: location.key, tab: activeTab };
+    previous.current = { key: location.key, tab: tabRoot };
   }
 
   // Позиция прокрутки запоминается для каждого экрана и возвращается при «Назад».
@@ -112,33 +118,59 @@ function RootLayout() {
   );
 
   const selectTab = (tab: TabId) => {
-    if (!orgId || !activeTab) return;
-    if (tab === activeTab) {
+    if (!orgId) return;
+    const target = tab === 'home' ? `/o/${orgId}` : `/o/${orgId}/${tab}`;
+    if (!tabRoot) {
+      navigate(target);
+      return;
+    }
+    if (tab === tabRoot) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     // Разделы не копят историю: «Назад» из любого раздела ведёт на главную.
     const fromHome = (location.state as { fromHome?: boolean } | null)?.fromHome === true;
-    const target = tab === 'home' ? `/o/${orgId}` : `/o/${orgId}/${tab}`;
     if (tab === 'home') {
       if (fromHome) navigate(-1);
       else navigate(target, { replace: true });
       return;
     }
-    if (activeTab === 'home') navigate(target, { state: { fromHome: true } });
+    if (tabRoot === 'home') navigate(target, { state: { fromHome: true } });
     else navigate(target, { replace: true, state: { fromHome } });
   };
 
   const organizationName = me.memberships.find((item) => item.organization_id === orgId)?.organization_name;
+  const userName = [me.account.first_name, me.account.last_name].filter(Boolean).join(' ');
 
   return (
     <BackContext.Provider value={!systemBack && !isRoot ? goBack : null}>
-      <div className="app-root" data-nav={activeTab ? 'true' : 'false'}>
+      <div className="app-root" data-nav={navMode}>
         <Outlet />
-        {activeTab ? <TabBar active={activeTab} organizationName={organizationName} onSelect={selectTab} /> : null}
+        {navMode !== 'none' ? (
+          <TabBar
+            active={activeTab}
+            organizationName={organizationName}
+            userName={userName}
+            userInitials={initials(me.account.first_name, me.account.last_name)}
+            userSeed={me.account.id}
+            canAdd={canAdd}
+            onSelect={selectTab}
+            onAdd={() => navigate(`/o/${orgId}/documents/new`)}
+            onAccount={() => navigate('/account')}
+            onHome={() => navigate(`/o/${orgId}`)}
+          />
+        ) : null}
       </div>
     </BackContext.Provider>
   );
+}
+
+// Раздел вложенного экрана — для бокового меню на компьютере.
+function sectionOf(pathname: string): TabId | null {
+  if (/^\/o\/[^/]+\/documents\//.test(pathname) || /^\/d\//.test(pathname)) return 'documents';
+  if (/^\/o\/[^/]+\/(members|invite)/.test(pathname)) return 'members';
+  if (/^\/o\/[^/]+\/settings\//.test(pathname) || pathname === '/account') return 'settings';
+  return null;
 }
 
 /** Главный экран выбирается по последней организации пользователя. */

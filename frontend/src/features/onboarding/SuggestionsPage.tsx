@@ -53,6 +53,7 @@ export function SuggestionsPage() {
 
   return (
     <AppShell
+      layout="split"
       title="Типовые документы"
       subtitle={fromDashboard ? organizationName : 'Отметьте документы, которые есть у организации, — сроки укажете на следующем шаге.'}
       headerExtra={fromDashboard ? null : <Steps current={3} total={4} />}

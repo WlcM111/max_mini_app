@@ -29,7 +29,7 @@
 - Экран «Сессия запуска устарела»: e2e-проверка находила два совпадения текста.
 
 ## Важные файлы
-- Стили: `frontend/src/shared/styles/` — tokens.css, base.css, components.css, pages.css;
+- Стили: `frontend/src/shared/styles/` — tokens.css, base.css, components.css, pages.css, layout.css;
   шрифт цифр `fonts/vv-numerals.woff` (подмножество Lora, лицензия SIL OFL). Старый app.css удалён.
 - Компоненты: `frontend/src/shared/ui/`; утилиты: `frontend/src/shared/lib/` (cx, format, navDirection).
 - `vite.config.ts`: `assetsInlineLimit: 0` — шрифт отдаётся файлом (CSP запрещает data:-шрифты).
@@ -53,3 +53,10 @@ Unit- и e2e-тесты в среде разработки не запускал
 Изменены (37): app/App.tsx, app/ErrorBoundary.tsx, app/providers.tsx, app/router.tsx, features/documents/DocumentCardPage.tsx, features/documents/DocumentFormPage.tsx, features/documents/DocumentListItem.tsx, features/documents/DocumentsPage.tsx, features/documents/RenewPage.tsx, features/export/CalendarExportButton.tsx, features/invites/InviteAcceptPage.tsx, features/members/InvitePage.tsx, features/members/MembersPage.tsx, features/onboarding/DatesPage.tsx, features/onboarding/FeaturesPage.tsx, features/onboarding/OrganizationFormPage.tsx, features/onboarding/SuggestionsPage.tsx, features/onboarding/WelcomePage.tsx, features/organizations/DashboardPage.tsx, features/organizations/OrganizationSettingsPage.tsx, features/organizations/OrganizationSwitcher.tsx, features/settings/AccountPage.tsx, features/settings/SettingsPage.tsx, features/system/LaunchErrorPage.tsx, features/system/NotFoundPage.tsx, features/system/NotInMaxPage.tsx, main.tsx, platform/max/mockBridge.ts, shared/ui/AppShell.tsx, shared/ui/ConfirmDialog.tsx, shared/ui/DateField.tsx, shared/ui/ModelDataBadge.tsx, shared/ui/OffsetChips.tsx, shared/ui/StateViews.tsx, shared/ui/StatusBadge.tsx, test/render.tsx, frontend/vite.config.ts
 
 Удалены (1): shared/styles/app.css
+
+## Адаптивная раскладка
+- `shared/styles/layout.css` — пороги 820, 1024 и 1440 px: две колонки в формах и карточке,
+  боковое меню вместо нижней панели, три колонки на широком мониторе; безопасные отступы
+  (`--sat`, `--sab`, `--sal`, `--sar`) учитываются в плавающих элементах.
+- `shared/lib/useViewport.ts` — `useMediaQuery` для подписки на смену ширины окна MAX на
+  компьютере и `useViewport` с `layoutName` для диагностики раскладки на экране аккаунта.
