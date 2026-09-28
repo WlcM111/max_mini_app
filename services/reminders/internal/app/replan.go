@@ -53,6 +53,7 @@ func (r *Replanner) ReplanDocument(ctx context.Context, documentID string) error
 	if err != nil {
 		return fmt.Errorf("list members: %w", err)
 	}
+	members = domain.RecipientsFor(doc, members)
 
 	items, err := domain.BuildPlan(domain.PlanInput{
 		Organization: org,

@@ -197,7 +197,8 @@ func toProtoEvent(e ports.IngestEvent) (*remindersv1.Event, error) {
 				PeriodId: p.CurrentPeriod.PeriodID, ValidFrom: p.CurrentPeriod.ValidFrom,
 				ValidUntil: p.CurrentPeriod.ValidUntil,
 			},
-			ReminderOffsetsDays: offsets,
+			ReminderOffsetsDays:  offsets,
+			ResponsibleAccountId: p.ResponsibleAccountID,
 		}}
 	case domain.EventDocumentDeleted:
 		var p domain.DocumentDeletedPayload

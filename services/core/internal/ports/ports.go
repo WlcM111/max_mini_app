@@ -98,6 +98,8 @@ type DocumentFilter struct {
 	AfterUntil     string // дата, 'infinity' или '-infinity'
 	AfterID        string
 	Limit          int
+	// ResponsibleAccountID — только документы этого ответственного (фильтр «Мои документы»).
+	ResponsibleAccountID string
 }
 
 // DocumentRepo — документы и периоды.

@@ -26,6 +26,9 @@ type DocumentInput struct {
 	ValidUntil       *time.Time
 	Offsets          []int
 	ExpectedVersion  int
+	// ResponsibleAccountID — публичный UUID ответственного участника; пусто — не назначен.
+	ResponsibleAccountID  string
+	SetResponsibleAccount bool
 
 	SetType        bool
 	SetTitle       bool
@@ -61,7 +64,7 @@ type DocumentPage struct {
 
 // ListDocuments возвращает страницу реестра документов организации.
 func (a *App) ListDocuments(ctx context.Context, actor Actor, orgPublicID string,
-	status domain.DeadlineStatus, query, cursor string, limit int) (DocumentPage, error) {
+	status domain.DeadlineStatus, query, cursor string, limit int, responsible string) (DocumentPage, error) {
 	org, m, err := a.authorize(ctx, actor, orgPublicID, domain.RoleViewer)
 	if err != nil {
 		return DocumentPage{}, err
@@ -86,6 +89,7 @@ func (a *App) ListDocuments(ctx context.Context, actor Actor, orgPublicID string
 	rows, err := a.Docs.List(ctx, ports.DocumentFilter{
 		OrganizationID: org.ID, Status: status, Query: query, Today: today,
 		AfterUntil: afterUntil, AfterID: afterID, Limit: limit + 1,
+		ResponsibleAccountID: responsible,
 	})
 	if err != nil {
 		return DocumentPage{}, err
@@ -150,6 +154,11 @@ func (a *App) CreateDocuments(ctx context.Context, actor Actor, orgPublicID stri
 			Notes: in.Notes, ReferenceURL: in.ReferenceURL,
 			ValidFrom: in.ValidFrom, ValidUntil: in.ValidUntil, Offsets: in.Offsets,
 		}, catalog, v)
+		if in.ResponsibleAccountID != "" {
+			if err := a.checkResponsible(ctx, org.ID, in.ResponsibleAccountID); err != nil {
+				return nil, err
+			}
+		}
 		if _, dup := seen[in.PublicID]; dup {
 			v.Add("items.id", domain.CodeNotUnique, "идентификаторы в пакете не должны повторяться")
 		}
@@ -201,7 +210,8 @@ func (a *App) CreateDocuments(ctx context.Context, actor Actor, orgPublicID stri
 				PublicID: in.PublicID, OrganizationID: org.ID, DocumentTypeCode: in.DocumentTypeCode,
 				Title: strings.TrimSpace(in.Title), Number: in.Number, Issuer: in.Issuer,
 				ResponsibleLabel: in.ResponsibleLabel, Notes: in.Notes, ReferenceURL: in.ReferenceURL,
-				ReminderOffsets: domain.NormalizeOffsets(offsets),
+				ResponsibleAccountID: in.ResponsibleAccountID,
+				ReminderOffsets:      domain.NormalizeOffsets(offsets),
 				CurrentPeriod: domain.Period{
 					PublicID: a.Random.UUID(), ValidFrom: in.ValidFrom, ValidUntil: in.ValidUntil, IsCurrent: true,
 				},
@@ -269,6 +279,14 @@ func (a *App) UpdateDocument(ctx context.Context, actor Actor, docPublicID strin
 		}
 		if in.SetResponsible {
 			next.ResponsibleLabel = in.ResponsibleLabel
+		}
+		if in.SetResponsibleAccount {
+			next.ResponsibleAccountID = in.ResponsibleAccountID
+			if next.ResponsibleAccountID != "" {
+				if err := a.checkResponsible(ctx, org.ID, next.ResponsibleAccountID); err != nil {
+					return err
+				}
+			}
 		}
 		if in.SetNotes {
 			next.Notes = in.Notes
@@ -544,4 +562,19 @@ func decodeCursor(cursor string) (string, string, error) {
 		return "", "", domain.ValidationFor("cursor", domain.CodeInvalidFormat, "курсор повреждён")
 	}
 	return parts[0], parts[1], nil
+}
+
+// checkResponsible проверяет, что ответственный — участник организации.
+func (a *App) checkResponsible(ctx context.Context, orgID int64, accountPublicID string) error {
+	if !domain.IsUUIDv4(accountPublicID) {
+		return domain.ValidationFor("responsible_account_id", domain.CodeInvalidFormat, "ожидается идентификатор участника")
+	}
+	account, err := a.Accounts.GetByPublicID(ctx, accountPublicID)
+	if err == nil {
+		_, err = a.Orgs.GetMembership(ctx, orgID, account.ID)
+	}
+	if err != nil {
+		return domain.ValidationFor("responsible_account_id", domain.CodeUnknownValue, "ответственный должен быть участником организации")
+	}
+	return nil
 }

@@ -22,6 +22,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.Handle("POST "+p+"/organizations/{organizationId}/documents", s.authenticated(s.handleCreateDocument))
 	mux.Handle("POST "+p+"/organizations/{organizationId}/documents/batch", s.authenticated(s.handleCreateDocumentsBatch))
 	mux.Handle("POST "+p+"/organizations/{organizationId}/documents/draft", s.authenticated(s.handleDraftDocument))
+	mux.Handle("POST "+p+"/organizations/{organizationId}/documents/draft-image", s.authenticated(s.handleDraftDocumentImage))
 	mux.Handle("GET "+p+"/documents/{documentId}", s.authenticated(s.handleGetDocument))
 	mux.Handle("PATCH "+p+"/documents/{documentId}", s.authenticated(s.handleUpdateDocument))
 	mux.Handle("DELETE "+p+"/documents/{documentId}", s.authenticated(s.handleDeleteDocument))

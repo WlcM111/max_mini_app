@@ -72,11 +72,12 @@ type DocumentPeriodPayload struct {
 
 // DocumentStatePayload — vovremya.reminders.v1.DocumentState.
 type DocumentStatePayload struct {
-	DocumentID     string                `json:"document_id"`
-	OrganizationID string                `json:"organization_id"`
-	Title          string                `json:"title"`
-	CurrentPeriod  DocumentPeriodPayload `json:"current_period"`
-	Offsets        []int                 `json:"reminder_offsets_days"`
+	DocumentID           string                `json:"document_id"`
+	OrganizationID       string                `json:"organization_id"`
+	Title                string                `json:"title"`
+	CurrentPeriod        DocumentPeriodPayload `json:"current_period"`
+	Offsets              []int                 `json:"reminder_offsets_days"`
+	ResponsibleAccountID string                `json:"responsible_account_id,omitempty"`
 }
 
 // OrganizationDeletedPayload — vovremya.reminders.v1.OrganizationDeleted.

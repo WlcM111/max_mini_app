@@ -154,7 +154,7 @@ func (d *Delivery) process(ctx context.Context, n domain.Notification) {
 
 	// Начатая отправка завершается и при остановке сервиса.
 	sendCtx, cancelSend := context.WithTimeout(context.WithoutCancel(ctx), d.cfg.RequestTimeout)
-	res, err := d.client.SendMessage(sendCtx, n.Message, profile)
+	res, err := d.client.SendMessage(sendCtx, n.WithSnoozeButton(), profile)
 	cancelSend()
 	now = d.clock.Now()
 	if err == nil {

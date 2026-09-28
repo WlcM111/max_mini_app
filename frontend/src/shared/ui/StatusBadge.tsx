@@ -14,14 +14,13 @@ interface Props {
   withDays?: boolean;
 }
 
-/** Статус срока: цвет и обязательно текст (доступность — не только цвет). */
+/** Статус срока: цвет и текст, чтобы статус не передавался одним цветом. */
 export function StatusBadge({ status, daysLeft, withDays = true }: Props) {
-  const text = TITLES[status];
-  const days = withDays && status !== 'no_expiry' ? daysLeftText(daysLeft ?? null) : null;
+  const days = withDays && status !== 'no_expiry' ? daysLeftText(daysLeft) : '';
   return (
-    <span className={`badge badge--${status}`}>
-      {text}
-      {days ? <span className="muted" style={{ color: 'inherit' }}>· {days}</span> : null}
+    <span className={`status status--${status}`}>
+      {TITLES[status]}
+      {days ? <span className="status__days">{days}</span> : null}
     </span>
   );
 }

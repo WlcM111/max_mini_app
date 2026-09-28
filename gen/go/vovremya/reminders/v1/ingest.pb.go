@@ -472,6 +472,8 @@ type DocumentState struct {
 	CurrentPeriod  *DocumentPeriod        `protobuf:"bytes,4,opt,name=current_period,json=currentPeriod,proto3" json:"current_period,omitempty"`
 	// Отступы напоминаний в днях: 0..365, не более 5, без повторов.
 	ReminderOffsetsDays []uint32 `protobuf:"varint,5,rep,packed,name=reminder_offsets_days,json=reminderOffsetsDays,proto3" json:"reminder_offsets_days,omitempty"`
+	// Ответственный участник (UUID v4) или пусто: тогда напоминания получают все участники.
+	ResponsibleAccountId string `protobuf:"bytes,6,opt,name=responsible_account_id,json=responsibleAccountId,proto3" json:"responsible_account_id,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -539,6 +541,13 @@ func (x *DocumentState) GetReminderOffsetsDays() []uint32 {
 		return x.ReminderOffsetsDays
 	}
 	return nil
+}
+
+func (x *DocumentState) GetResponsibleAccountId() string {
+	if x != nil {
+		return x.ResponsibleAccountId
+	}
+	return ""
 }
 
 type OrganizationDeleted struct {
@@ -1360,121 +1369,71 @@ func (x *GetIngestStateResponse) GetAggregates() []*AggregateState {
 var File_vovremya_reminders_v1_ingest_proto protoreflect.FileDescriptor
 
 const file_vovremya_reminders_v1_ingest_proto_rawDesc = "" +
-	"\n" +
-	"\"vovremya/reminders/v1/ingest.proto\x12\x15vovremya.reminders.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"l\n" +
-	"\x11OrganizationState\x12'\n" +
-	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
-	"\btimezone\x18\x03 \x01(\tR\btimezone\"\x99\x02\n" +
-	"\x0fMembershipState\x12'\n" +
-	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\x12E\n" +
-	"\faccount_kind\x18\x03 \x01(\x0e2\".vovremya.reminders.v1.AccountKindR\vaccountKind\x12\x1e\n" +
-	"\vmax_user_id\x18\x04 \x01(\x03R\tmaxUserId\x12%\n" +
-	"\x0enotify_enabled\x18\x05 \x01(\bR\rnotifyEnabled\x120\n" +
-	"\x14notify_local_minutes\x18\x06 \x01(\rR\x12notifyLocalMinutes\"m\n" +
-	"\x0eDocumentPeriod\x12\x1b\n" +
-	"\tperiod_id\x18\x01 \x01(\tR\bperiodId\x12\x1d\n" +
-	"\n" +
-	"valid_from\x18\x02 \x01(\tR\tvalidFrom\x12\x1f\n" +
-	"\vvalid_until\x18\x03 \x01(\tR\n" +
-	"validUntil\"\xf1\x01\n" +
-	"\rDocumentState\x12\x1f\n" +
-	"\vdocument_id\x18\x01 \x01(\tR\n" +
-	"documentId\x12'\n" +
-	"\x0forganization_id\x18\x02 \x01(\tR\x0eorganizationId\x12\x14\n" +
-	"\x05title\x18\x03 \x01(\tR\x05title\x12L\n" +
-	"\x0ecurrent_period\x18\x04 \x01(\v2%.vovremya.reminders.v1.DocumentPeriodR\rcurrentPeriod\x122\n" +
-	"\x15reminder_offsets_days\x18\x05 \x03(\rR\x13reminderOffsetsDays\">\n" +
-	"\x13OrganizationDeleted\x12'\n" +
-	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\"[\n" +
-	"\x11MembershipRemoved\x12'\n" +
-	"\x0forganization_id\x18\x01 \x01(\tR\x0eorganizationId\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\"[\n" +
-	"\x0fDocumentDeleted\x12\x1f\n" +
-	"\vdocument_id\x18\x01 \x01(\tR\n" +
-	"documentId\x12'\n" +
-	"\x0forganization_id\x18\x02 \x01(\tR\x0eorganizationId\"/\n" +
-	"\x0eAccountDeleted\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"\x89\b\n" +
-	"\x05Event\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\x124\n" +
-	"\x04type\x18\x02 \x01(\x0e2 .vovremya.reminders.v1.EventTypeR\x04type\x12%\n" +
-	"\x0eschema_version\x18\x03 \x01(\rR\rschemaVersion\x12%\n" +
-	"\x0esource_service\x18\x04 \x01(\tR\rsourceService\x12K\n" +
-	"\x0eaggregate_type\x18\x05 \x01(\x0e2$.vovremya.reminders.v1.AggregateTypeR\raggregateType\x12!\n" +
-	"\faggregate_id\x18\x06 \x01(\tR\vaggregateId\x12+\n" +
-	"\x11aggregate_version\x18\a \x01(\x04R\x10aggregateVersion\x12;\n" +
-	"\voccurred_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"occurredAt\x12\x1a\n" +
-	"\bsnapshot\x18\t \x01(\bR\bsnapshot\x12Y\n" +
-	"\x12organization_state\x18\x14 \x01(\v2(.vovremya.reminders.v1.OrganizationStateH\x00R\x11organizationState\x12_\n" +
-	"\x14organization_deleted\x18\x15 \x01(\v2*.vovremya.reminders.v1.OrganizationDeletedH\x00R\x13organizationDeleted\x12S\n" +
-	"\x10membership_state\x18\x16 \x01(\v2&.vovremya.reminders.v1.MembershipStateH\x00R\x0fmembershipState\x12Y\n" +
-	"\x12membership_removed\x18\x17 \x01(\v2(.vovremya.reminders.v1.MembershipRemovedH\x00R\x11membershipRemoved\x12M\n" +
-	"\x0edocument_state\x18\x18 \x01(\v2$.vovremya.reminders.v1.DocumentStateH\x00R\rdocumentState\x12S\n" +
-	"\x10document_deleted\x18\x19 \x01(\v2&.vovremya.reminders.v1.DocumentDeletedH\x00R\x0fdocumentDeleted\x12P\n" +
-	"\x0faccount_deleted\x18\x1a \x01(\v2%.vovremya.reminders.v1.AccountDeletedH\x00R\x0eaccountDeletedB\t\n" +
-	"\apayload\"e\n" +
-	"\x12ApplyEventsRequest\x124\n" +
-	"\x06events\x18\x01 \x03(\v2\x1c.vovremya.reminders.v1.EventR\x06events\x12\x19\n" +
-	"\bbatch_id\x18\x02 \x01(\tR\abatchId\"\xaa\x01\n" +
-	"\vEventResult\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12=\n" +
-	"\aoutcome\x18\x02 \x01(\x0e2#.vovremya.reminders.v1.EventOutcomeR\aoutcome\x12'\n" +
-	"\x0fapplied_version\x18\x03 \x01(\x04R\x0eappliedVersion\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\"S\n" +
-	"\x13ApplyEventsResponse\x12<\n" +
-	"\aresults\x18\x01 \x03(\v2\".vovremya.reminders.v1.EventResultR\aresults\"\\\n" +
-	"\x15GetIngestStateRequest\x12C\n" +
-	"\n" +
-	"aggregates\x18\x01 \x03(\v2#.vovremya.reminders.v1.AggregateRefR\n" +
-	"aggregates\"~\n" +
-	"\fAggregateRef\x12K\n" +
-	"\x0eaggregate_type\x18\x01 \x01(\x0e2$.vovremya.reminders.v1.AggregateTypeR\raggregateType\x12!\n" +
-	"\faggregate_id\x18\x02 \x01(\tR\vaggregateId\"\xfe\x01\n" +
-	"\x0eAggregateState\x12K\n" +
-	"\x0eaggregate_type\x18\x01 \x01(\x0e2$.vovremya.reminders.v1.AggregateTypeR\raggregateType\x12!\n" +
-	"\faggregate_id\x18\x02 \x01(\tR\vaggregateId\x12'\n" +
-	"\x0fapplied_version\x18\x03 \x01(\x04R\x0eappliedVersion\x129\n" +
-	"\n" +
-	"applied_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tappliedAt\x12\x18\n" +
-	"\adeleted\x18\x05 \x01(\bR\adeleted\"_\n" +
-	"\x16GetIngestStateResponse\x12E\n" +
-	"\n" +
-	"aggregates\x18\x01 \x03(\v2%.vovremya.reminders.v1.AggregateStateR\n" +
-	"aggregates*\xa8\x01\n" +
-	"\rAggregateType\x12\x1e\n" +
-	"\x1aAGGREGATE_TYPE_UNSPECIFIED\x10\x00\x12\x1f\n" +
-	"\x1bAGGREGATE_TYPE_ORGANIZATION\x10\x01\x12\x1d\n" +
-	"\x19AGGREGATE_TYPE_MEMBERSHIP\x10\x02\x12\x1b\n" +
-	"\x17AGGREGATE_TYPE_DOCUMENT\x10\x03\x12\x1a\n" +
-	"\x16AGGREGATE_TYPE_ACCOUNT\x10\x04*\x93\x02\n" +
-	"\tEventType\x12\x1a\n" +
-	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12!\n" +
-	"\x1dEVENT_TYPE_ORGANIZATION_STATE\x10\x01\x12#\n" +
-	"\x1fEVENT_TYPE_ORGANIZATION_DELETED\x10\x02\x12\x1f\n" +
-	"\x1bEVENT_TYPE_MEMBERSHIP_STATE\x10\x03\x12!\n" +
-	"\x1dEVENT_TYPE_MEMBERSHIP_REMOVED\x10\x04\x12\x1d\n" +
-	"\x19EVENT_TYPE_DOCUMENT_STATE\x10\x05\x12\x1f\n" +
-	"\x1bEVENT_TYPE_DOCUMENT_DELETED\x10\x06\x12\x1e\n" +
-	"\x1aEVENT_TYPE_ACCOUNT_DELETED\x10\a*Z\n" +
-	"\vAccountKind\x12\x1c\n" +
-	"\x18ACCOUNT_KIND_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10ACCOUNT_KIND_MAX\x10\x01\x12\x17\n" +
-	"\x13ACCOUNT_KIND_REVIEW\x10\x02*\x9a\x01\n" +
-	"\fEventOutcome\x12\x1d\n" +
-	"\x19EVENT_OUTCOME_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15EVENT_OUTCOME_APPLIED\x10\x01\x12\x1b\n" +
-	"\x17EVENT_OUTCOME_DUPLICATE\x10\x02\x12\x17\n" +
-	"\x13EVENT_OUTCOME_STALE\x10\x03\x12\x1a\n" +
-	"\x16EVENT_OUTCOME_REJECTED\x10\x042\xe4\x01\n" +
-	"\rIngestService\x12d\n" +
-	"\vApplyEvents\x12).vovremya.reminders.v1.ApplyEventsRequest\x1a*.vovremya.reminders.v1.ApplyEventsResponse\x12m\n" +
-	"\x0eGetIngestState\x12,.vovremya.reminders.v1.GetIngestStateRequest\x1a-.vovremya.reminders.v1.GetIngestStateResponseB3Z1vovremya/gen/go/vovremya/reminders/v1;remindersv1b\x06proto3"
+	"\n\x22vovremya/reminders/v1/ingest.proto\x12\x15vovremya.reminders.v1\x1a\x1fgoo" +
+	"gle/protobuf/timestamp.proto\x22l\n\x11OrganizationState\x12'\n\x0forganizatio" +
+	"n_id\x18\x01 \x01(\x09R\x0eorganizationId\x12\x12\n\x04name\x18\x02 \x01(\x09R\x04name\x12\x1a\n\x08timezone\x18\x03 \x01(\x09" +
+	"R\x08timezone\x22\x99\x02\n\x0fMembershipState\x12'\n\x0forganization_id\x18\x01 \x01(\x09R\x0eorganiz" +
+	"ationId\x12\x1d\n\naccount_id\x18\x02 \x01(\x09R\x09accountId\x12E\n\x0caccount_kind\x18\x03 \x01(\x0e2\x22.v" +
+	"ovremya.reminders.v1.AccountKindR\x0baccountKind\x12\x1e\n\x0bmax_user_id\x18\x04 \x01" +
+	"(\x03R\x09maxUserId\x12%\n\x0enotify_enabled\x18\x05 \x01(\x08R\x0dnotifyEnabled\x120\n\x14notify_l" +
+	"ocal_minutes\x18\x06 \x01(\x0dR\x12notifyLocalMinutes\x22m\n\x0eDocumentPeriod\x12\x1b\n\x09peri" +
+	"od_id\x18\x01 \x01(\x09R\x08periodId\x12\x1d\n\nvalid_from\x18\x02 \x01(\x09R\x09validFrom\x12\x1f\n\x0bvalid_un" +
+	"til\x18\x03 \x01(\x09R\nvalidUntil\x22\xa7\x02\n\x0dDocumentState\x12\x1f\n\x0bdocument_id\x18\x01 \x01(\x09R\ndo" +
+	"cumentId\x12'\n\x0forganization_id\x18\x02 \x01(\x09R\x0eorganizationId\x12\x14\n\x05title\x18\x03 \x01(\x09" +
+	"R\x05title\x12L\n\x0ecurrent_period\x18\x04 \x01(\x0b2%.vovremya.reminders.v1.Document" +
+	"PeriodR\x0dcurrentPeriod\x122\n\x15reminder_offsets_days\x18\x05 \x03(\x0dR\x13reminderOf" +
+	"fsetsDays\x124\n\x16responsible_account_id\x18\x06 \x01(\x09R\x14responsibleAccountId\x22" +
+	">\n\x13OrganizationDeleted\x12'\n\x0forganization_id\x18\x01 \x01(\x09R\x0eorganizationId\x22" +
+	"[\n\x11MembershipRemoved\x12'\n\x0forganization_id\x18\x01 \x01(\x09R\x0eorganizationId\x12\x1d\n" +
+	"\naccount_id\x18\x02 \x01(\x09R\x09accountId\x22[\n\x0fDocumentDeleted\x12\x1f\n\x0bdocument_id\x18\x01" +
+	" \x01(\x09R\ndocumentId\x12'\n\x0forganization_id\x18\x02 \x01(\x09R\x0eorganizationId\x22/\n\x0eAcc" +
+	"ountDeleted\x12\x1d\n\naccount_id\x18\x01 \x01(\x09R\x09accountId\x22\x89\x08\n\x05Event\x12\x19\n\x08event_id" +
+	"\x18\x01 \x01(\x09R\x07eventId\x124\n\x04type\x18\x02 \x01(\x0e2 .vovremya.reminders.v1.EventTypeR" +
+	"\x04type\x12%\n\x0eschema_version\x18\x03 \x01(\x0dR\x0dschemaVersion\x12%\n\x0esource_service\x18\x04" +
+	" \x01(\x09R\x0dsourceService\x12K\n\x0eaggregate_type\x18\x05 \x01(\x0e2$.vovremya.reminders" +
+	".v1.AggregateTypeR\x0daggregateType\x12!\n\x0caggregate_id\x18\x06 \x01(\x09R\x0baggregat" +
+	"eId\x12+\n\x11aggregate_version\x18\x07 \x01(\x04R\x10aggregateVersion\x12;\n\x0boccurred_at\x18" +
+	"\x08 \x01(\x0b2\x1a.google.protobuf.TimestampR\noccurredAt\x12\x1a\n\x08snapshot\x18\x09 \x01(\x08R" +
+	"\x08snapshot\x12Y\n\x12organization_state\x18\x14 \x01(\x0b2(.vovremya.reminders.v1.Or" +
+	"ganizationStateH\x00R\x11organizationState\x12_\n\x14organization_deleted\x18\x15 \x01" +
+	"(\x0b2*.vovremya.reminders.v1.OrganizationDeletedH\x00R\x13organizationDe" +
+	"leted\x12S\n\x10membership_state\x18\x16 \x01(\x0b2&.vovremya.reminders.v1.Membersh" +
+	"ipStateH\x00R\x0fmembershipState\x12Y\n\x12membership_removed\x18\x17 \x01(\x0b2(.vovremy" +
+	"a.reminders.v1.MembershipRemovedH\x00R\x11membershipRemoved\x12M\n\x0edocumen" +
+	"t_state\x18\x18 \x01(\x0b2$.vovremya.reminders.v1.DocumentStateH\x00R\x0ddocumentS" +
+	"tate\x12S\n\x10document_deleted\x18\x19 \x01(\x0b2&.vovremya.reminders.v1.DocumentD" +
+	"eletedH\x00R\x0fdocumentDeleted\x12P\n\x0faccount_deleted\x18\x1a \x01(\x0b2%.vovremya.re" +
+	"minders.v1.AccountDeletedH\x00R\x0eaccountDeletedB\x09\n\x07payload\x22e\n\x12ApplyE" +
+	"ventsRequest\x124\n\x06events\x18\x01 \x03(\x0b2\x1c.vovremya.reminders.v1.EventR\x06even" +
+	"ts\x12\x19\n\x08batch_id\x18\x02 \x01(\x09R\x07batchId\x22\xaa\x01\n\x0bEventResult\x12\x19\n\x08event_id\x18\x01 \x01(\x09R" +
+	"\x07eventId\x12=\n\x07outcome\x18\x02 \x01(\x0e2#.vovremya.reminders.v1.EventOutcomeR\x07" +
+	"outcome\x12'\n\x0fapplied_version\x18\x03 \x01(\x04R\x0eappliedVersion\x12\x18\n\x07message\x18\x04 \x01(" +
+	"\x09R\x07message\x22S\n\x13ApplyEventsResponse\x12<\n\x07results\x18\x01 \x03(\x0b2\x22.vovremya.re" +
+	"minders.v1.EventResultR\x07results\x22\x5c\n\x15GetIngestStateRequest\x12C\n\naggr" +
+	"egates\x18\x01 \x03(\x0b2#.vovremya.reminders.v1.AggregateRefR\naggregates\x22~\n" +
+	"\x0cAggregateRef\x12K\n\x0eaggregate_type\x18\x01 \x01(\x0e2$.vovremya.reminders.v1.Ag" +
+	"gregateTypeR\x0daggregateType\x12!\n\x0caggregate_id\x18\x02 \x01(\x09R\x0baggregateId\x22\xfe\x01" +
+	"\n\x0eAggregateState\x12K\n\x0eaggregate_type\x18\x01 \x01(\x0e2$.vovremya.reminders.v1" +
+	".AggregateTypeR\x0daggregateType\x12!\n\x0caggregate_id\x18\x02 \x01(\x09R\x0baggregateId" +
+	"\x12'\n\x0fapplied_version\x18\x03 \x01(\x04R\x0eappliedVersion\x129\n\napplied_at\x18\x04 \x01(\x0b2\x1a." +
+	"google.protobuf.TimestampR\x09appliedAt\x12\x18\n\x07deleted\x18\x05 \x01(\x08R\x07deleted\x22_" +
+	"\n\x16GetIngestStateResponse\x12E\n\naggregates\x18\x01 \x03(\x0b2%.vovremya.reminder" +
+	"s.v1.AggregateStateR\naggregates*\xa8\x01\n\x0dAggregateType\x12\x1e\n\x1aAGGREGATE_T" +
+	"YPE_UNSPECIFIED\x10\x00\x12\x1f\n\x1bAGGREGATE_TYPE_ORGANIZATION\x10\x01\x12\x1d\n\x19AGGREGATE_" +
+	"TYPE_MEMBERSHIP\x10\x02\x12\x1b\n\x17AGGREGATE_TYPE_DOCUMENT\x10\x03\x12\x1a\n\x16AGGREGATE_TYPE" +
+	"_ACCOUNT\x10\x04*\x93\x02\n\x09EventType\x12\x1a\n\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12!\n\x1dEVENT_TY" +
+	"PE_ORGANIZATION_STATE\x10\x01\x12#\n\x1fEVENT_TYPE_ORGANIZATION_DELETED\x10\x02\x12\x1f\n\x1b" +
+	"EVENT_TYPE_MEMBERSHIP_STATE\x10\x03\x12!\n\x1dEVENT_TYPE_MEMBERSHIP_REMOVED\x10\x04" +
+	"\x12\x1d\n\x19EVENT_TYPE_DOCUMENT_STATE\x10\x05\x12\x1f\n\x1bEVENT_TYPE_DOCUMENT_DELETED\x10\x06" +
+	"\x12\x1e\n\x1aEVENT_TYPE_ACCOUNT_DELETED\x10\x07*Z\n\x0bAccountKind\x12\x1c\n\x18ACCOUNT_KIND_" +
+	"UNSPECIFIED\x10\x00\x12\x14\n\x10ACCOUNT_KIND_MAX\x10\x01\x12\x17\n\x13ACCOUNT_KIND_REVIEW\x10\x02*\x9a\x01\n" +
+	"\x0cEventOutcome\x12\x1d\n\x19EVENT_OUTCOME_UNSPECIFIED\x10\x00\x12\x19\n\x15EVENT_OUTCOME_AP" +
+	"PLIED\x10\x01\x12\x1b\n\x17EVENT_OUTCOME_DUPLICATE\x10\x02\x12\x17\n\x13EVENT_OUTCOME_STALE\x10\x03\x12\x1a\n" +
+	"\x16EVENT_OUTCOME_REJECTED\x10\x042\xe4\x01\n\x0dIngestService\x12d\n\x0bApplyEvents\x12).vov" +
+	"remya.reminders.v1.ApplyEventsRequest\x1a*.vovremya.reminders.v1.Ap" +
+	"plyEventsResponse\x12m\n\x0eGetIngestState\x12,.vovremya.reminders.v1.GetI" +
+	"ngestStateRequest\x1a-.vovremya.reminders.v1.GetIngestStateResponse" +
+	"B3Z1vovremya/gen/go/vovremya/reminders/v1;remindersv1b\x06proto3"
 
 var (
 	file_vovremya_reminders_v1_ingest_proto_rawDescOnce sync.Once

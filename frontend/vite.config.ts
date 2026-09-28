@@ -14,6 +14,8 @@ export default defineConfig({
     target: 'es2019',
     sourcemap: false,
     chunkSizeWarningLimit: 300,
+    // CSP запрещает data:-шрифты: ассеты всегда отдельными файлами.
+    assetsInlineLimit: 0,
   },
   server: {
     port: 5173,

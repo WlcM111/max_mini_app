@@ -11,6 +11,8 @@ import (
 const (
 	// ButtonOpenDocument — надпись кнопки напоминания.
 	ButtonOpenDocument = "Открыть документ"
+	ButtonRenewed      = "Продлил"
+	ButtonOpenApp      = "Открыть «Вовремя»"
 	// MaxMessageLen — ограничение MAX на длину текста сообщения.
 	MaxMessageLen = 4000
 )
@@ -55,3 +57,9 @@ func ReminderText(documentTitle, organizationName string, daysBefore int, validU
 // DeepLinkPayload возвращает payload диплинка мини-приложения для документа.
 // Грамматика зафиксирована спецификацией MAX-интеграции §5: doc_<uuid>.
 func DeepLinkPayload(documentID string) string { return "doc_" + documentID }
+
+// RenewLinkPayload — диплинк экрана продления (кнопка «Продлил»).
+func RenewLinkPayload(documentID string) string { return "renew_" + documentID }
+
+// OrganizationLinkPayload — диплинк главной организации (кнопка в сводке).
+func OrganizationLinkPayload(organizationID string) string { return "org_" + organizationID }

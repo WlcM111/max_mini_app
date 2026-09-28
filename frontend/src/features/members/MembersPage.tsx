@@ -1,28 +1,32 @@
 import { useState } from 'react';
-import { Button } from '@maxhub/max-ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { queryKeys } from '../../api/queryKeys';
 import { messageForError } from '../../api/errors';
 import { AppShell } from '../../shared/ui/AppShell';
+import { Avatar } from '../../shared/ui/Avatar';
+import { Button } from '../../shared/ui/Button';
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog';
+import { Fab } from '../../shared/ui/Fab';
+import { Icon } from '../../shared/ui/Icon';
 import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateViews';
+import { toast } from '../../shared/ui/Toast';
 import { formatDate } from '../../shared/lib/dates';
+import { initials, ROLE_TITLES } from '../../shared/lib/format';
 import { roleAllows, useRole, useSession } from '../../session/useSession';
 import { listInvites, listMembers, removeMember, revokeInvite, updateMemberRole } from './api';
 
-const ROLE_TITLES: Record<string, string> = { owner: 'Владелец', editor: 'Редактор', viewer: 'Наблюдатель' };
+const ROLE_OPTIONS = ['editor', 'viewer'] as const;
 
 /** Участники организации, их роли и активные приглашения (FR-10). */
 export function MembersPage() {
   const { orgId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { refreshMe } = useSession();
+  const { me, refreshMe } = useSession();
   const role = useRole(orgId);
   const isOwner = roleAllows(role, 'owner');
   const [removing, setRemoving] = useState<{ accountId: string; self: boolean } | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const members = useQuery({
     queryKey: queryKeys.members(orgId),
@@ -42,24 +46,24 @@ export function MembersPage() {
       updateMemberRole(orgId, accountId, nextRole),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.members(orgId) });
+      toast('Роль изменена', 'success');
     },
-    onError: (error) => setNotice(messageForError(error)),
+    onError: (error) => toast(messageForError(error), 'error'),
   });
 
   const remove = useMutation({
     mutationFn: (accountId: string) => removeMember(orgId, accountId),
-    onSuccess: async (_data, accountId) => {
+    onSuccess: async () => {
       const self = removing?.self ?? false;
       setRemoving(null);
       await queryClient.invalidateQueries({ queryKey: queryKeys.members(orgId) });
       await refreshMe();
       if (self) navigate('/', { replace: true });
-      else setNotice('Участник исключён');
-      void accountId;
+      else toast('Участник исключён', 'success');
     },
     onError: (error) => {
       setRemoving(null);
-      setNotice(messageForError(error));
+      toast(messageForError(error), 'error');
     },
   });
 
@@ -67,102 +71,119 @@ export function MembersPage() {
     mutationFn: (inviteId: string) => revokeInvite(inviteId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.invites(orgId) });
-      setNotice('Приглашение отозвано');
+      toast('Приглашение отозвано', 'success');
     },
-    onError: (error) => setNotice(messageForError(error)),
+    onError: (error) => toast(messageForError(error), 'error'),
   });
+
+  const list = members.data ?? [];
+  const openInvites = invites.data ?? [];
+  const organizationName = me.memberships.find((item) => item.organization_id === orgId)?.organization_name;
 
   return (
     <AppShell
       title="Участники"
-      actions={
-        isOwner ? (
-          <Button size="large" stretched onClick={() => navigate(`/o/${orgId}/invite`)}>
-            Пригласить
-          </Button>
-        ) : null
-      }
+      subtitle={organizationName}
+      fab={isOwner ? <Fab icon="user-plus" label="Пригласить" onClick={() => navigate(`/o/${orgId}/invite`)} /> : null}
     >
       {members.isLoading ? <LoadingView rows={3} /> : null}
       {members.isError ? <ErrorView error={members.error} onRetry={() => void members.refetch()} /> : null}
-
-      {members.data && members.data.length === 1 ? (
+      {list.length === 1 ? (
         <EmptyView
+          art="people"
           title="Вы пока работаете один"
-          description={isOwner ? 'Пригласите коллегу — он увидит те же сроки.' : undefined}
+          description={isOwner ? 'Пригласите коллегу — он увидит те же сроки и сможет помогать с документами.' : undefined}
         />
       ) : null}
 
-      <div className="list">
-        {members.data?.map((member) => (
-          <div key={member.account_id} className="list-item" style={{ cursor: 'default' }}>
-            <span className="grow">
-              <span className="list-item__title truncate">
-                {member.first_name} {member.last_name ?? ''} {member.is_me ? '(вы)' : ''}
-              </span>
-              <span className="list-item__meta">
-                {ROLE_TITLES[member.role] ?? member.role} · с {formatDate(member.joined_at.slice(0, 10))}
-              </span>
-            </span>
-            {isOwner && member.role !== 'owner' ? (
-              <select
-                aria-label={`Роль участника ${member.first_name}`}
-                value={member.role}
-                onChange={(event) =>
-                  changeRole.mutate({
-                    accountId: member.account_id,
-                    nextRole: event.target.value as 'editor' | 'viewer',
-                  })
-                }
-              >
-                <option value="editor">Редактор</option>
-                <option value="viewer">Наблюдатель</option>
-              </select>
-            ) : null}
-            {(isOwner && member.role !== 'owner') || (member.is_me && member.role !== 'owner') ? (
-              <Button
-                size="small"
-                variant="ghost"
-                onClick={() => setRemoving({ accountId: member.account_id, self: member.is_me })}
-              >
-                {member.is_me ? 'Выйти' : 'Исключить'}
-              </Button>
-            ) : null}
+      {list.length > 0 ? (
+        <section className="group" aria-labelledby="members-title">
+          <h2 className="group__title" id="members-title">
+            В команде: {list.length}
+          </h2>
+          <div className="group__card">
+            {list.map((member) => {
+              const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ');
+              const canManage = isOwner && member.role !== 'owner';
+              return (
+                <div key={member.account_id} className="member">
+                  <div className="member__top">
+                    <Avatar text={initials(member.first_name, member.last_name)} seed={member.account_id} />
+                    <div className="member__info">
+                      <span className="member__name">
+                        {fullName}
+                        {member.is_me ? <span className="member__you">вы</span> : null}
+                      </span>
+                      <span className="member__meta">
+                        {ROLE_TITLES[member.role] ?? member.role}, в команде с {formatDate(member.joined_at.slice(0, 10))}
+                      </span>
+                    </div>
+                  </div>
+                  {canManage ? (
+                    <div className="member__controls">
+                      <div className="segmented" role="group" aria-label={`Роль участника ${fullName}`}>
+                        {ROLE_OPTIONS.map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            className="segmented__btn"
+                            aria-pressed={member.role === value}
+                            disabled={changeRole.isPending}
+                            onClick={() => {
+                              if (member.role !== value) changeRole.mutate({ accountId: member.account_id, nextRole: value });
+                            }}
+                          >
+                            {ROLE_TITLES[value]}
+                          </button>
+                        ))}
+                      </div>
+                      <Button variant="danger-soft" size="s" onClick={() => setRemoving({ accountId: member.account_id, self: false })}>
+                        Исключить
+                      </Button>
+                    </div>
+                  ) : null}
+                  {!isOwner && member.is_me ? (
+                    <div className="member__controls">
+                      <Button variant="danger-soft" size="s" icon="logout" onClick={() => setRemoving({ accountId: member.account_id, self: true })}>
+                        Выйти из организации
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
-
-      {isOwner && invites.data && invites.data.length > 0 ? (
-        <section className="stack stack--tight" aria-label="Активные приглашения">
-          <h2 className="card__title">Активные приглашения</h2>
-          {invites.data.map((invite) => (
-            <div key={invite.id} className="list-item" style={{ cursor: 'default' }}>
-              <span className="grow">
-                <span className="list-item__title">{ROLE_TITLES[invite.role] ?? invite.role}</span>
-                <span className="list-item__meta">действует до {formatDate(invite.expires_at.slice(0, 10))}</span>
-              </span>
-              <Button size="small" variant="ghost" onClick={() => revoke.mutate(invite.id)}>
-                Отозвать
-              </Button>
-            </div>
-          ))}
         </section>
       ) : null}
 
-      {notice ? (
-        <p className="muted" aria-live="polite">
-          {notice}
-        </p>
+      {isOwner && openInvites.length > 0 ? (
+        <section className="group" aria-labelledby="invites-title">
+          <h2 className="group__title" id="invites-title">
+            Активные приглашения
+          </h2>
+          <div className="group__card">
+            {openInvites.map((invite) => (
+              <div key={invite.id} className="invite-row">
+                <span className="nav-row__icon" aria-hidden="true">
+                  <Icon name="link" />
+                </span>
+                <span className="invite-row__text">
+                  <span className="invite-row__title">{ROLE_TITLES[invite.role] ?? invite.role}</span>
+                  <span className="invite-row__meta">Действует до {formatDate(invite.expires_at.slice(0, 10))}</span>
+                </span>
+                <Button variant="tertiary" size="s" disabled={revoke.isPending} onClick={() => revoke.mutate(invite.id)}>
+                  Отозвать
+                </Button>
+              </div>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       <ConfirmDialog
         open={removing !== null}
         title={removing?.self ? 'Выйти из организации?' : 'Исключить участника?'}
-        description={
-          removing?.self
-            ? 'Вы перестанете видеть документы этой организации и получать напоминания.'
-            : 'Участник потеряет доступ к документам организации.'
-        }
+        description={removing?.self ? 'Вы потеряете доступ к документам этой организации.' : 'Участник потеряет доступ к документам организации.'}
         confirmLabel={removing?.self ? 'Выйти' : 'Исключить'}
         destructive
         pending={remove.isPending}

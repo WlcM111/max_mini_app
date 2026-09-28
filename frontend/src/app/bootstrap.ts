@@ -34,6 +34,7 @@ const appVersion = (): string => import.meta.env.VITE_APP_VERSION ?? 'dev';
 /** Выбирает первый экран по цели запуска и списку организаций (spec §3, шаг 5). */
 export function chooseInitialPath(start: StartTarget, me: Me, lastOrganization: string | null): string {
   if (start.kind === 'document' && start.document_id) return `/d/${start.document_id}`;
+  if (start.kind === 'renew' && start.document_id) return `/d/${start.document_id}/renew`;
   if (start.kind === 'organization' && start.organization_id) return `/o/${start.organization_id}`;
   if (start.kind === 'invite') return '/invite';
   if (me.memberships.length === 0) return '/welcome';

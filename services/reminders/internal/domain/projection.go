@@ -120,6 +120,8 @@ type Document struct {
 	OffsetsDays    []int
 	Version        uint64
 	Deleted        bool
+	// ResponsibleAccountID — ответственный участник; пусто — напоминания получают все.
+	ResponsibleAccountID string
 }
 
 // Validate проверяет инварианты проекции документа.

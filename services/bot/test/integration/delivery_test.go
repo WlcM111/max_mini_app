@@ -22,8 +22,18 @@ func TestDeliverySuccess(t *testing.T) {
 	if len(sent) != 1 || sent[0].Message.RecipientMaxUserID != 1001 {
 		t.Fatalf("в MAX ушло %d сообщений: %+v", len(sent), sent)
 	}
-	if len(sent[0].Message.Buttons) != 1 || sent[0].Profile.Username != "vovremya_local_bot" {
-		t.Errorf("кнопка или профиль не переданы: %+v", sent[0])
+	buttons := sent[0].Message.Buttons
+	if len(buttons) != 2 || sent[0].Profile.Username != "vovremya_local_bot" {
+		t.Fatalf("кнопки или профиль не переданы: %+v", sent[0])
+	}
+	if buttons[0].Action != domain.ActionOpenApp ||
+		buttons[0].Payload != "doc_3c9e7a52-1f4b-4d6a-8e2c-5b7f9a1d3e02" {
+		t.Errorf("первая кнопка должна открывать карточку документа: %+v", buttons[0])
+	}
+	if buttons[1].Action != domain.ActionCallback ||
+		buttons[1].Text != domain.SnoozeButtonText ||
+		buttons[1].Payload != domain.SnoozePayloadPrefix+"delivery-ok-0001" {
+		t.Errorf("вторая кнопка — отложить напоминание на неделю: %+v", buttons[1])
 	}
 	n := s.status(t, "delivery-ok-0001")
 	if n.Status != domain.StatusSent || n.Attempts != 1 || n.SentAt == nil || n.MaxMessageID != "fake-1" {

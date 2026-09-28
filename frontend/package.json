@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "gen-api": "openapi-typescript ../openapi.yaml -o src/api/schema.d.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "visual": "playwright test -c playwright.visual.config.ts",
+    "visual:update": "playwright test -c playwright.visual.config.ts --update-snapshots"
   },
   "license": "MIT",
   "dependencies": {

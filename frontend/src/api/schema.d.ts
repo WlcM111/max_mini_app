@@ -157,6 +157,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizations/{organizationId}/documents/draft-image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Черновик карточки документа по фотографии
+         * @description Фотография документа передаётся ассистенту (GigaChat, ADR-032) для чтения реквизитов
+         *     и сразу удаляется из хранилища GigaChat; сервис изображение не сохраняет.
+         *     Ответ — тот же черновик, что у `.../documents/draft`. Изображение JPEG или PNG до 5 МБ.
+         */
+        post: operations["draftDocumentImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/organizations/{organizationId}/documents": {
         parameters: {
             query?: never;
@@ -390,7 +414,10 @@ export interface paths {
     };
     "/downloads/{downloadToken}": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description xlsx — реестр документов (Excel) по той же ссылке вместо календаря */
+                format?: "ics" | "xlsx";
+            };
             header?: never;
             path: {
                 downloadToken: string;
@@ -515,7 +542,7 @@ export interface components {
         /** @description Разобранный start_param из проверенных данных запуска */
         StartTarget: {
             /** @enum {string} */
-            kind: "none" | "document" | "organization" | "invite";
+            kind: "none" | "document" | "organization" | "invite" | "renew";
             document_id?: components["schemas"]["Uuid"];
             organization_id?: components["schemas"]["Uuid"];
             invite_token?: string;
@@ -689,6 +716,11 @@ export interface components {
             issuer?: string | null;
             /** @description Должность или условное обозначение; ФИО и иные ПДн не вводить */
             responsible_label?: string | null;
+            /**
+             * Format: uuid
+             * @description Ответственный участник организации; напоминания уходят лично ему
+             */
+            responsible_account_id?: string | null;
             notes?: string | null;
             reference_url?: string | null;
             valid_from?: components["schemas"]["LocalDate"] | null;
@@ -708,6 +740,11 @@ export interface components {
             number?: string | null;
             issuer?: string | null;
             responsible_label?: string | null;
+            /**
+             * Format: uuid
+             * @description Ответственный участник; ему уходят напоминания
+             */
+            responsible_account_id?: string | null;
             notes?: string | null;
             reference_url?: string | null;
             valid_from?: components["schemas"]["LocalDate"] | null;
@@ -733,6 +770,11 @@ export interface components {
             document_type_code: string | null;
             title: string;
             responsible_label: string | null;
+            /**
+             * Format: uuid
+             * @description Ответственный участник; ему уходят напоминания
+             */
+            responsible_account_id?: string | null;
             valid_until: components["schemas"]["LocalDate"] | null;
             status: components["schemas"]["DeadlineStatus"];
             /** @description valid_until − сегодня в днях; отрицательно для просроченных; null для бессрочных */
@@ -756,6 +798,11 @@ export interface components {
             number: string | null;
             issuer: string | null;
             responsible_label: string | null;
+            /**
+             * Format: uuid
+             * @description Ответственный участник; ему уходят напоминания
+             */
+            responsible_account_id?: string | null;
             notes: string | null;
             reference_url: string | null;
             current_period: components["schemas"]["Period"];
@@ -1250,6 +1297,44 @@ export interface operations {
             default: components["responses"]["Unexpected"];
         };
     };
+    draftDocumentImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Изображение в Base64 */
+                    image: string;
+                    /** @enum {string} */
+                    mime_type: "image/jpeg" | "image/png";
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDraft"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
+            default: components["responses"]["Unexpected"];
+        };
+    };
     listDocuments: {
         parameters: {
             query?: {
@@ -1257,6 +1342,8 @@ export interface operations {
                 /** @description Поиск подстроки в названии без учёта регистра */
                 q?: string;
                 limit?: number;
+                /** @description me — только документы, где ответственный — текущий пользователь */
+                responsible?: string;
                 cursor?: string;
             };
             header?: never;
@@ -1792,7 +1879,10 @@ export interface operations {
     };
     downloadCalendar: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description xlsx — реестр документов (Excel) по той же ссылке вместо календаря */
+                format?: "ics" | "xlsx";
+            };
             header?: never;
             path: {
                 downloadToken: string;

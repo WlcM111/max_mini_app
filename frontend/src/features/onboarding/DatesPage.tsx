@@ -1,17 +1,21 @@
 import { useMemo, useState } from 'react';
-import { Button, Switch } from '@maxhub/max-ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
+import type { DocumentCreate } from '../../api/client';
 import { queryKeys } from '../../api/queryKeys';
 import { ApiError, messageForError } from '../../api/errors';
-import type { DocumentCreate } from '../../api/client';
 import { AppShell } from '../../shared/ui/AppShell';
+import { Button } from '../../shared/ui/Button';
 import { DateField } from '../../shared/ui/DateField';
-import { ErrorView, LoadingView } from '../../shared/ui/StateViews';
-import { uuidV4 } from '../../shared/lib/uuid';
+import { Icon } from '../../shared/ui/Icon';
+import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateViews';
+import { Steps } from '../../shared/ui/Steps';
+import { ToggleRow } from '../../shared/ui/Switch';
+import { toast } from '../../shared/ui/Toast';
 import { validateDates } from '../../shared/lib/validation';
-import { getCatalog } from '../organizations/api';
+import { uuidV4 } from '../../shared/lib/uuid';
 import { createDocumentsBatch } from '../documents/api';
+import { getCatalog } from '../organizations/api';
 import { getDraft, resetDraft } from './onboardingDraft';
 
 interface Entry {
@@ -26,10 +30,11 @@ interface Entry {
 /** Шаг 4: сроки выбранных документов; пакет создаётся одним запросом (FR-08). */
 export function DatesPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
+  const fromDashboard = (location.state as { from?: string } | null)?.from === 'dashboard';
   const draft = getDraft();
   const [error, setError] = useState<string | null>(null);
-
   const catalog = useQuery({ queryKey: queryKeys.catalog(), queryFn: getCatalog, staleTime: Infinity });
 
   const initial = useMemo<Entry[]>(() => {
@@ -46,7 +51,6 @@ export function DatesPage() {
       };
     });
   }, [catalog.data, draft.selectedTypes]);
-
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const rows = entries ?? initial;
 
@@ -73,6 +77,7 @@ export function DatesPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.organization(organizationId) });
       await queryClient.invalidateQueries({ queryKey: ['documents'] });
       await queryClient.invalidateQueries({ queryKey: queryKeys.suggestions(organizationId) });
+      toast('Документы добавлены', 'success');
       navigate(`/o/${organizationId}`, { replace: true });
     },
     onError: (failure) => {
@@ -85,20 +90,42 @@ export function DatesPage() {
     },
   });
 
+  const steps = fromDashboard ? null : <Steps current={4} total={4} />;
+
   if (catalog.isLoading) {
     return (
-      <AppShell title="Сроки документов">
-        <LoadingView rows={3} />
+      <AppShell title="Сроки документов" headerExtra={steps}>
+        <LoadingView rows={3} variant="form" />
       </AppShell>
     );
   }
+
   if (catalog.isError) {
     return (
-      <AppShell title="Сроки документов">
+      <AppShell title="Сроки документов" headerExtra={steps}>
         <ErrorView error={catalog.error} onRetry={() => void catalog.refetch()} />
       </AppShell>
     );
   }
+
+  if (rows.length === 0) {
+    return (
+      <AppShell title="Сроки документов" headerExtra={steps}>
+        <EmptyView
+          art="none"
+          title="Документы не выбраны"
+          action={
+            <Button variant="secondary" onClick={() => navigate('/', { replace: true })}>
+              На главную
+            </Button>
+          }
+        />
+      </AppShell>
+    );
+  }
+
+  const updateEntry = (index: number, patch: Partial<Entry>) =>
+    setEntries(rows.map((entry, position) => (position === index ? { ...entry, ...patch } : entry)));
 
   const submit = () => {
     for (const entry of rows) {
@@ -115,48 +142,38 @@ export function DatesPage() {
   return (
     <AppShell
       title="Сроки документов"
-      subtitle="Шаг 4 из 4"
+      subtitle="Дату можно не указывать — вернётесь к ней позже в карточке документа."
+      headerExtra={steps}
+      actionsNote={
+        error ? (
+          <p className="actionbar__note" role="alert">
+            <Icon name="alert" size={18} />
+            {error}
+          </p>
+        ) : null
+      }
       actions={
-        <Button size="large" stretched loading={save.isPending} onClick={submit}>
-          Сохранить документы
+        <Button size="l" stretched loading={save.isPending} onClick={submit}>
+          Сохранить документы ({rows.length})
         </Button>
       }
     >
-      <p className="card__text">Дату можно не указывать — вернётесь к ней позже в карточке документа.</p>
-      {rows.map((entry, index) => (
-        <section key={entry.id} className="card stack stack--tight" aria-label={entry.title}>
-          <h2 className="card__title">{entry.title}</h2>
-          <div className="row row--between">
-            <span>Бессрочный</span>
-            <Switch
+      <div className="list stagger">
+        {rows.map((entry, index) => (
+          <section key={entry.id} className="form-card" aria-label={entry.title}>
+            <h2 className="form-card__title">{entry.title}</h2>
+            {!entry.indefinite ? (
+              <DateField label="Действует до" value={entry.validUntil} onChange={(value) => updateEntry(index, { validUntil: value })} />
+            ) : null}
+            <ToggleRow
+              flush
+              title="Бессрочный документ"
               checked={entry.indefinite}
-              aria-label={`${entry.title}: бессрочный`}
-              onChange={(event) => {
-                const checked = event.target.checked;
-                setEntries(
-                  rows.map((item, position) =>
-                    position === index ? { ...item, indefinite: checked, validUntil: checked ? null : item.validUntil } : item,
-                  ),
-                );
-              }}
+              onChange={(checked) => updateEntry(index, { indefinite: checked, validUntil: checked ? null : entry.validUntil })}
             />
-          </div>
-          {!entry.indefinite ? (
-            <DateField
-              label="Действует до"
-              value={entry.validUntil}
-              onChange={(value) =>
-                setEntries(rows.map((item, position) => (position === index ? { ...item, validUntil: value } : item)))
-              }
-            />
-          ) : null}
-        </section>
-      ))}
-      {error ? (
-        <p className="field__error" role="alert" aria-live="polite">
-          {error}
-        </p>
-      ) : null}
+          </section>
+        ))}
+      </div>
     </AppShell>
   );
 }

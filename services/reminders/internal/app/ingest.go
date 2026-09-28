@@ -159,6 +159,10 @@ func (s *IngestService) applyPayload(ctx context.Context, ev Event) error {
 		if _, err := s.planner.reminders.CancelByMember(ctx, orgID, accountID); err != nil {
 			return fmt.Errorf("cancel member reminders: %w", err)
 		}
+		// Если ушёл ответственный, напоминания по его документам снова получают все участники.
+		if err := s.planner.ReplanOrganization(ctx, orgID); err != nil {
+			return fmt.Errorf("replan organization: %w", err)
+		}
 		return nil
 
 	case EventDocumentState:

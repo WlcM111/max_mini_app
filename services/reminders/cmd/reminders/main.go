@@ -213,6 +213,12 @@ func serve(cfg config.Config, log *slog.Logger) error {
 		Name:  "scheduler",
 		Start: scheduler.Run,
 	})
+	// Недельная сводка: по понедельникам во время напоминаний участника.
+	digest := app.NewDigestRunner(projRepo, botClient, sysClock, log)
+	runner.Add(lifecycle.Component{
+		Name:  "digest",
+		Start: digest.Run,
+	})
 	runner.Add(lifecycle.Component{
 		Name:  "retention",
 		Start: retention.Run,

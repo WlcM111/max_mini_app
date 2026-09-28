@@ -131,6 +131,8 @@ type Document struct {
 	CurrentPeriod     Period
 	Periods           []Period
 	ReminderOffsets   []int
+	// ResponsibleAccountID — публичный UUID ответственного участника или пусто.
+	ResponsibleAccountID string
 }
 
 // DocumentStats — сводка статусов документов организации.

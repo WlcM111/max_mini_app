@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Button, Input, Textarea } from '@maxhub/max-ui';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { queryKeys } from '../../api/queryKeys';
 import { messageForError } from '../../api/errors';
 import { AppShell } from '../../shared/ui/AppShell';
+import { Button } from '../../shared/ui/Button';
+import { SelectField, TextAreaField, TextField } from '../../shared/ui/Field';
+import { Icon } from '../../shared/ui/Icon';
 import { ErrorView, LoadingView } from '../../shared/ui/StateViews';
+import { Steps } from '../../shared/ui/Steps';
+import { timezoneLabel } from '../../shared/lib/format';
 import { validateOrganizationName, validateRequiredCode, validateTimezone } from '../../shared/lib/validation';
-import { getCatalog, matchProfile } from '../organizations/api';
 import { useSession } from '../../session/useSession';
+import { getCatalog, matchProfile } from '../organizations/api';
 import { getDraft, updateDraft } from './onboardingDraft';
 
 /** Шаг 1 онбординга: профиль бизнеса (черновик хранится локально). */
@@ -22,8 +26,8 @@ export function OrganizationFormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [description, setDescription] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  const [flashCategory, setFlashCategory] = useState(false);
   const { me } = useSession();
-
   const catalog = useQuery({ queryKey: queryKeys.catalog(), queryFn: getCatalog, staleTime: Infinity });
 
   // Подбор профиля по свободному описанию (FR-22): ассистент возвращает только
@@ -31,11 +35,12 @@ export function OrganizationFormPage() {
   const match = useMutation({
     mutationFn: () => matchProfile(description),
     onSuccess: (result) => {
-      if (result.business_category_code) setCategoryCode(result.business_category_code);
+      if (result.business_category_code) {
+        setCategoryCode(result.business_category_code);
+        setFlashCategory(true);
+      }
       updateDraft({ featureCodes: [...result.feature_codes] });
-      const category = catalog.data?.business_categories.find(
-        (item) => item.code === result.business_category_code,
-      );
+      const category = catalog.data?.business_categories.find((item) => item.code === result.business_category_code);
       setNotice(
         result.business_category_code || result.feature_codes.length > 0
           ? `Подобрано: ${category?.title ?? 'вид деятельности не определён'}` +
@@ -45,6 +50,12 @@ export function OrganizationFormPage() {
     },
     onError: (error) => setNotice(messageForError(error)),
   });
+
+  useEffect(() => {
+    if (!flashCategory) return undefined;
+    const timer = window.setTimeout(() => setFlashCategory(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [flashCategory]);
 
   useEffect(() => {
     if (!catalog.data) return;
@@ -57,21 +68,25 @@ export function OrganizationFormPage() {
     }
   }, [catalog.data, categoryCode, regionCode]);
 
+  const steps = <Steps current={1} total={4} />;
+
   if (catalog.isLoading) {
     return (
-      <AppShell title="Ваша организация">
-        <LoadingView rows={4} />
+      <AppShell title="Ваша организация" headerExtra={steps}>
+        <LoadingView rows={4} variant="form" />
       </AppShell>
     );
   }
+
   if (catalog.isError || !catalog.data) {
     return (
-      <AppShell title="Ваша организация">
+      <AppShell title="Ваша организация" headerExtra={steps}>
         <ErrorView error={catalog.error} onRetry={() => void catalog.refetch()} />
       </AppShell>
     );
   }
 
+  const data = catalog.data;
   const next = () => {
     const found: Record<string, string> = {};
     const nameError = validateOrganizationName(name);
@@ -88,113 +103,102 @@ export function OrganizationFormPage() {
     navigate('/onboarding/features');
   };
 
-  const timezones = Array.from(new Set(catalog.data.regions.map((region) => region.default_timezone)));
+  const timezones = Array.from(new Set(data.regions.map((region) => region.default_timezone)));
 
   return (
     <AppShell
       title="Ваша организация"
-      subtitle="Шаг 1 из 4"
+      headerExtra={steps}
       actions={
-        <Button size="large" stretched onClick={next}>
+        <Button size="l" stretched iconRight="arrow-right" onClick={next}>
           Далее
         </Button>
       }
     >
       {me.assistant_enabled ? (
-        <section className="card stack stack--tight" aria-label="Подбор по описанию">
-          <h2 className="card__title">Опишите бизнес своими словами</h2>
-          <p className="card__text">
-            По описанию подберём вид деятельности и признаки — останется проверить и продолжить.
-          </p>
-          <Textarea
-            aria-label="Описание бизнеса"
+        <section className="assist" aria-labelledby="profile-assist-title">
+          <div className="assist__head">
+            <span className="assist__icon" aria-hidden="true">
+              <Icon name="sparkles" />
+            </span>
+            <div>
+              <h2 className="assist__title" id="profile-assist-title">
+                Опишите бизнес своими словами
+              </h2>
+              <p className="assist__text">Подберём вид деятельности и особенности — останется только проверить.</p>
+            </div>
+          </div>
+          <TextAreaField
+            label="Описание бизнеса"
+            labelHidden
             value={description}
-            placeholder="Кофейня на 30 мест, есть летняя веранда, продаём пиво"
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={setDescription}
+            rows={3}
+            placeholder="Кофейня на 30 мест, летняя веранда, продаём пиво"
           />
           <Button
-            size="medium"
             variant="secondary"
+            icon="sparkles"
             loading={match.isPending}
-            disabled={match.isPending || description.trim() === ''}
+            disabled={description.trim() === ''}
             onClick={() => match.mutate()}
           >
             Подобрать по описанию
           </Button>
           {notice ? (
-            <p className="muted" aria-live="polite">
+            <p className="assist__notice" aria-live="polite">
               {notice}
             </p>
           ) : null}
-          <span className="field__hint">Текст обрабатывается сервисом GigaChat; данные организации не передаются.</span>
+          <p className="assist__fine">Описание обрабатывается сервисом GigaChat и не сохраняется.</p>
         </section>
       ) : null}
-
-      <div className="field">
-        <label className="field__label" htmlFor="onboarding-name">
-          Название
-        </label>
-        <Input
-          id="onboarding-name"
-          value={name}
-          placeholder="Кафе «Пример»"
-          onChange={(event) => setName(event.target.value)}
-        />
-        {errors.name ? (
-          <span className="field__error" role="alert">
-            {errors.name}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="field">
-        <label className="field__label" htmlFor="onboarding-category">
-          Вид деятельности
-        </label>
-        <select id="onboarding-category" value={categoryCode} onChange={(event) => setCategoryCode(event.target.value)}>
-          {catalog.data.business_categories.map((item) => (
-            <option key={item.code} value={item.code}>
-              {item.title}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="field">
-        <label className="field__label" htmlFor="onboarding-region">
-          Регион
-        </label>
-        <select
-          id="onboarding-region"
-          value={regionCode}
-          onChange={(event) => {
-            const code = event.target.value;
-            setRegionCode(code);
-            const region = catalog.data.regions.find((item) => item.code === code);
-            if (region) setTimezone(region.default_timezone);
-          }}
-        >
-          {catalog.data.regions.map((item) => (
-            <option key={item.code} value={item.code}>
-              {item.title}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="field">
-        <label className="field__label" htmlFor="onboarding-timezone">
-          Часовой пояс
-        </label>
-        <select id="onboarding-timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)}>
-          {timezones.map((zone) => (
-            <option key={zone} value={zone}>
-              {zone}
-            </option>
-          ))}
-        </select>
-        <span className="field__hint">В этом поясе приходят напоминания</span>
-      </div>
+      <section className="group" aria-labelledby="org-form-title">
+        <h2 className="group__title" id="org-form-title">
+          Основное
+        </h2>
+        <div className="form-card">
+          <TextField
+            id="onboarding-name"
+            label="Название"
+            value={name}
+            error={errors.name}
+            placeholder="Кафе «Пример»"
+            maxLength={200}
+            onChange={setName}
+          />
+          <SelectField
+            id="onboarding-category"
+            label="Вид деятельности"
+            value={categoryCode}
+            error={errors.category}
+            flash={flashCategory}
+            onChange={setCategoryCode}
+            options={data.business_categories.map((item) => ({ value: item.code, label: item.title }))}
+          />
+          <SelectField
+            id="onboarding-region"
+            label="Регион"
+            value={regionCode}
+            error={errors.region}
+            onChange={(code) => {
+              setRegionCode(code);
+              const region = data.regions.find((item) => item.code === code);
+              if (region) setTimezone(region.default_timezone);
+            }}
+            options={data.regions.map((item) => ({ value: item.code, label: item.title }))}
+          />
+          <SelectField
+            id="onboarding-timezone"
+            label="Часовой пояс"
+            hint="В этом поясе приходят напоминания"
+            value={timezone}
+            error={errors.timezone}
+            onChange={setTimezone}
+            options={timezones.map((zone) => ({ value: zone, label: timezoneLabel(zone) }))}
+          />
+        </div>
+      </section>
     </AppShell>
   );
 }

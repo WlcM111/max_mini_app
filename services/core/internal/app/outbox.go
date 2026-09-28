@@ -78,7 +78,7 @@ func (a *App) appendDocumentEvent(ctx context.Context, orgPublicID string, doc d
 	return a.appendEvent(ctx, domain.EventDocumentState, domain.AggregateDocument, doc.PublicID,
 		int64(doc.Version), domain.DocumentStatePayload{
 			DocumentID: doc.PublicID, OrganizationID: orgPublicID, Title: doc.Title,
-			CurrentPeriod: period, Offsets: offsets,
+			CurrentPeriod: period, Offsets: offsets, ResponsibleAccountID: doc.ResponsibleAccountID,
 		})
 }
 

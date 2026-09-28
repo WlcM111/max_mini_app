@@ -1,19 +1,26 @@
 import { useEffect, useState } from 'react';
-import { Button, Switch } from '@maxhub/max-ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { queryKeys } from '../../api/queryKeys';
 import { messageForError } from '../../api/errors';
 import { AppShell } from '../../shared/ui/AppShell';
+import { Button } from '../../shared/ui/Button';
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog';
+import { SelectField } from '../../shared/ui/Field';
+import { NavRow } from '../../shared/ui/Rows';
 import { ErrorView, LoadingView } from '../../shared/ui/StateViews';
+import { ToggleRow } from '../../shared/ui/Switch';
+import { toast } from '../../shared/ui/Toast';
+import { cx } from '../../shared/lib/cx';
+import { timezoneLabel } from '../../shared/lib/format';
 import { notifyTimeOptions, validateNotifyTime } from '../../shared/lib/validation';
 import { openMaxDeepLink } from '../../platform/max/links';
 import { clearLastOrganization } from '../../session/sessionStore';
 import { roleAllows, useRole, useSession } from '../../session/useSession';
 import { CalendarExportButton } from '../export/CalendarExportButton';
-import { deleteOrganization, getOrganization } from '../organizations/api';
+import { RegistryExportButton } from '../export/RegistryExportButton';
 import { removeMember } from '../members/api';
+import { deleteOrganization, getOrganization } from '../organizations/api';
 import { getNotificationSettings, putNotificationSettings } from './api';
 
 const CHANNEL_TEXT: Record<string, string> = {
@@ -33,8 +40,8 @@ export function SettingsPage() {
   const { me, refreshMe } = useSession();
   const role = useRole(orgId);
   const isOwner = roleAllows(role, 'owner');
+  const canEdit = roleAllows(role, 'editor');
   const [confirm, setConfirm] = useState<'delete-org' | 'leave' | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(true);
   const [localTime, setLocalTime] = useState('09:00');
 
@@ -62,9 +69,9 @@ export function SettingsPage() {
     onSuccess: async (data) => {
       queryClient.setQueryData(queryKeys.notify(orgId), data);
       await refreshMe();
-      setNotice('Настройки сохранены');
+      toast('Настройки сохранены', 'success');
     },
-    onError: (error) => setNotice(messageForError(error)),
+    onError: (error) => toast(messageForError(error), 'error'),
   });
 
   const removeOrganization = useMutation({
@@ -77,7 +84,7 @@ export function SettingsPage() {
     },
     onError: (error) => {
       setConfirm(null);
-      setNotice(messageForError(error));
+      toast(messageForError(error), 'error');
     },
   });
 
@@ -90,27 +97,27 @@ export function SettingsPage() {
     },
     onError: (error) => {
       setConfirm(null);
-      setNotice(messageForError(error));
+      toast(messageForError(error), 'error');
     },
   });
 
   const applySettings = (next: { enabled: boolean; local_time: string }) => {
     const invalid = validateNotifyTime(next.local_time);
     if (invalid) {
-      setNotice(invalid);
+      toast(invalid, 'error');
       return;
     }
-    setNotice(null);
     save.mutate(next);
   };
 
   if (organization.isLoading || settings.isLoading) {
     return (
       <AppShell title="Настройки">
-        <LoadingView rows={4} />
+        <LoadingView rows={4} variant="form" />
       </AppShell>
     );
   }
+
   if (organization.isError || !organization.data) {
     return (
       <AppShell title="Настройки">
@@ -120,94 +127,126 @@ export function SettingsPage() {
   }
 
   const channel = me.reminders_channel;
+  const channelWarn = channel.state !== 'active';
+  const fullName = [me.account.first_name, me.account.last_name].filter(Boolean).join(' ');
+  const openBot = () => {
+    if (channel.bot_chat_url) void openMaxDeepLink(channel.bot_chat_url).catch(() => toast('Ссылка на чат скопирована — откройте её в MAX'));
+  };
 
   return (
     <AppShell title="Настройки" subtitle={organization.data.name}>
-      <section className="card stack stack--tight" aria-label="Мои напоминания">
-        <h2 className="card__title">Мои напоминания</h2>
-        <div className="row row--between">
-          <span>Присылать напоминания</span>
-          <Switch
+      <section className="group" aria-labelledby="notify-title">
+        <h2 className="group__title" id="notify-title">
+          Мои напоминания
+        </h2>
+        <div className="group__card">
+          <ToggleRow
+            title="Присылать напоминания"
+            hint="Сообщения приходят в чат с ботом, по понедельникам — сводка на неделю"
             checked={enabled}
-            aria-label="Присылать напоминания"
-            onChange={(event) => {
-              setEnabled(event.target.checked);
-              applySettings({ enabled: event.target.checked, local_time: localTime });
+            disabled={save.isPending}
+            onChange={(checked) => {
+              setEnabled(checked);
+              applySettings({ enabled: checked, local_time: localTime });
             }}
           />
+          <div className="group__field">
+            <SelectField
+              id="notify-time"
+              label="Время напоминаний"
+              hint={`Часовой пояс: ${timezoneLabel(organization.data.timezone)}`}
+              value={localTime}
+              disabled={!enabled || save.isPending}
+              onChange={(value) => {
+                setLocalTime(value);
+                applySettings({ enabled, local_time: value });
+              }}
+              options={notifyTimeOptions().map((option) => ({ value: option, label: option }))}
+            />
+          </div>
+          <div className={cx('channel', channelWarn && 'channel--warn')}>
+            <span className="channel__dot" aria-hidden="true" />
+            <span>{CHANNEL_TEXT[channel.state] ?? CHANNEL_TEXT.unknown}</span>
+          </div>
+          {channelWarn && channel.bot_chat_url ? (
+            <div className="group__field">
+              <Button variant="neutral" icon="chat" onClick={openBot}>
+                Открыть чат с ботом
+              </Button>
+            </div>
+          ) : null}
         </div>
-        <div className="field">
-          <label className="field__label" htmlFor="notify-time">
-            Время напоминаний ({organization.data.timezone})
-          </label>
-          <select
-            id="notify-time"
-            value={localTime}
-            onChange={(event) => {
-              setLocalTime(event.target.value);
-              applySettings({ enabled, local_time: event.target.value });
-            }}
-          >
-            {notifyTimeOptions().map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+      </section>
+
+      <section className="group" aria-labelledby="calendar-title">
+        <h2 className="group__title" id="calendar-title">
+          Календарь
+        </h2>
+        <div className="group__card group__card--pad">
+          <p className="group__text">Сроки всех документов одним файлом .ics — откройте его в календаре телефона или компьютера.</p>
+          <CalendarExportButton organizationId={orgId} />
         </div>
-        <p className="muted">{CHANNEL_TEXT[channel.state] ?? CHANNEL_TEXT.unknown}</p>
-        {channel.bot_chat_url && channel.state !== 'active' ? (
-          <Button
-            size="medium"
-            variant="secondary"
-            onClick={() => {
-              if (channel.bot_chat_url) void openMaxDeepLink(channel.bot_chat_url);
-            }}
-          >
-            Открыть чат с ботом
-          </Button>
-        ) : null}
       </section>
 
-      <section className="card stack stack--tight" aria-label="Экспорт">
-        <h2 className="card__title">Календарь</h2>
-        <p className="card__text">Файл .ics со сроками документов можно открыть в календаре телефона.</p>
-        <CalendarExportButton organizationId={orgId} />
+      <section className="group" aria-labelledby="data-title">
+        <h2 className="group__title" id="data-title">
+          Данные
+        </h2>
+        <div className="group__card">
+          {canEdit ? (
+            <NavRow
+              icon="upload"
+              title="Импорт из Excel"
+              hint="Загрузить сразу много документов из таблицы"
+              onClick={() => navigate(`/o/${orgId}/documents/import`)}
+            />
+          ) : null}
+          <div className="group__field">
+            <p className="group__text">Реестр со сроками и статусами — для бухгалтерии и проверок.</p>
+            <RegistryExportButton organizationId={orgId} />
+          </div>
+        </div>
       </section>
 
-      <section className="stack stack--tight" aria-label="Организация">
-        {roleAllows(role, 'editor') ? (
-          <Button size="medium" stretched variant="secondary" onClick={() => navigate(`/o/${orgId}/settings/profile`)}>
-            Профиль организации
-          </Button>
-        ) : null}
-        <Button size="medium" stretched variant="secondary" onClick={() => navigate('/account')}>
-          Аккаунт
-        </Button>
-        {isOwner ? (
-          <Button size="medium" stretched variant="destructive" onClick={() => setConfirm('delete-org')}>
-            Удалить организацию
-          </Button>
-        ) : (
-          <Button size="medium" stretched variant="destructive" onClick={() => setConfirm('leave')}>
-            Выйти из организации
-          </Button>
-        )}
+      <section className="group" aria-labelledby="org-title">
+        <h2 className="group__title" id="org-title">
+          Организация и аккаунт
+        </h2>
+        <div className="group__card">
+          {canEdit ? (
+            <NavRow
+              icon="building"
+              title="Профиль организации"
+              hint="Название, вид деятельности, регион"
+              onClick={() => navigate(`/o/${orgId}/settings/profile`)}
+            />
+          ) : null}
+          <NavRow icon="user" title="Аккаунт" hint={fullName} onClick={() => navigate('/account')} />
+        </div>
       </section>
 
-      {notice ? (
-        <p className="muted" aria-live="polite">
-          {notice}
+      <section className="group" aria-label="Опасные действия">
+        <div className="group__card">
+          <NavRow
+            icon={isOwner ? 'trash' : 'logout'}
+            title={isOwner ? 'Удалить организацию' : 'Выйти из организации'}
+            danger
+            chevron={false}
+            onClick={() => setConfirm(isOwner ? 'delete-org' : 'leave')}
+          />
+        </div>
+        <p className="group__foot">
+          {isOwner ? 'Удалятся все документы, напоминания и приглашения организации.' : 'Доступ к документам организации пропадёт.'}
         </p>
-      ) : null}
+      </section>
 
       <ConfirmDialog
         open={confirm !== null}
         title={confirm === 'delete-org' ? 'Удалить организацию?' : 'Выйти из организации?'}
         description={
           confirm === 'delete-org'
-            ? 'Будут удалены все документы, напоминания и приглашения организации.'
-            : 'Вы перестанете видеть документы и получать напоминания этой организации.'
+            ? 'Все документы, напоминания и приглашения будут удалены. Действие нельзя отменить.'
+            : 'Вы потеряете доступ к документам этой организации.'
         }
         confirmLabel={confirm === 'delete-org' ? 'Удалить' : 'Выйти'}
         destructive

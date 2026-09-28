@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -42,8 +43,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.QueueLimit != 50000 || cfg.OpenAppButtonKind != "link" {
 		t.Errorf("backpressure или вид кнопки: %d %s", cfg.QueueLimit, cfg.OpenAppButtonKind)
 	}
-	if len(cfg.WebhookUpdateTypes) != 6 {
-		t.Errorf("типы подписки: %v", cfg.WebhookUpdateTypes)
+	if len(cfg.WebhookUpdateTypes) != 7 || !slices.Contains(cfg.WebhookUpdateTypes, "message_callback") {
+		t.Errorf("типы подписки: %v (ожидались 7 типов, включая message_callback для кнопки отложенного напоминания)",
+			cfg.WebhookUpdateTypes)
 	}
 	if cfg.LiveMode() {
 		t.Error("по умолчанию ожидается режим stub")

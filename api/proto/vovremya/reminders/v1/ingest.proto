@@ -85,6 +85,8 @@ message DocumentState {
   DocumentPeriod current_period = 4;
   // Отступы напоминаний в днях: 0..365, не более 5, без повторов.
   repeated uint32 reminder_offsets_days = 5;
+  // Ответственный участник (UUID v4) или пусто: тогда напоминания получают все участники.
+  string responsible_account_id = 6;
 }
 
 message OrganizationDeleted { string organization_id = 1; }

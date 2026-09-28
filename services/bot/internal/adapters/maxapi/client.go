@@ -186,6 +186,19 @@ func (c *Client) SendMessage(ctx context.Context, msg domain.Message, profile do
 	}
 }
 
+// AnswerCallback отвечает на нажатие callback-кнопки всплывающим уведомлением (POST /answers).
+func (c *Client) AnswerCallback(ctx context.Context, callbackID, notification string) error {
+	resp, err := c.do(ctx, http.MethodPost, "answer_callback", "/answers",
+		url.Values{"callback_id": {callbackID}}, map[string]string{"notification": notification})
+	if err != nil {
+		return err
+	}
+	if resp.status/100 != 2 {
+		return fmt.Errorf("MAX ответил %d на /answers", resp.status)
+	}
+	return nil
+}
+
 // classifyStatus переводит код ответа MAX в исход доставки (spec §8).
 func classifyStatus(status int, header http.Header) domain.SendFailure {
 	switch {

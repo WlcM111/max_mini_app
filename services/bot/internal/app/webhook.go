@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"unicode/utf8"
 
 	"vovremya/services/bot/internal/domain"
@@ -16,6 +17,9 @@ type InboundUpdate struct {
 	Parsed  bool   // тип и время события распознаны
 	FromBot bool   // отправитель сообщения — бот
 	Update  domain.Update
+	// Нажатие callback-кнопки (message_callback).
+	CallbackID      string
+	CallbackPayload string
 }
 
 // WebhookResult — итог обработки события.
@@ -36,6 +40,7 @@ type WebhookService struct {
 	clock      ports.Clock
 	log        *slog.Logger
 	metrics    *Metrics
+	answerer   callbackAnswerer
 }
 
 // NewWebhookService создаёт обработчик событий.
@@ -48,6 +53,9 @@ func NewWebhookService(tx ports.TxManager, inbound ports.InboundRepo, recipients
 // Handle обрабатывает событие. Повтор того же тела распознаётся по ключу
 // дедупликации и не даёт повторных эффектов.
 func (s *WebhookService) Handle(ctx context.Context, in InboundUpdate) (WebhookResult, error) {
+	if in.Parsed && in.CallbackID != "" && strings.HasPrefix(in.CallbackPayload, domain.SnoozePayloadPrefix) {
+		s.snooze(ctx, in)
+	}
 	now := s.clock.Now()
 	u := in.Update
 	outcome := domain.OutcomeIgnored

@@ -1,8 +1,21 @@
-/** Пометка модельных данных справочника (BR-04, ADR-016). */
+import { Banner } from './Banner';
+import { Icon } from './Icon';
+
+const TEXT = 'Модельные данные справочника — сверяйте сроки с документом.';
+
+/** Предупреждение: сроки из справочника учебные и требуют проверки. */
 export function ModelDataBadge({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <p className="model-note">
+        <Icon name="info" size={16} />
+        {TEXT}
+      </p>
+    );
+  }
   return (
-    <p className={compact ? 'muted' : 'banner'}>
-      Модельные данные справочника — сверяйте сроки с документом.
-    </p>
+    <Banner tone="info" icon="info">
+      {TEXT}
+    </Banner>
   );
 }

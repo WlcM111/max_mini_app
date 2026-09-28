@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Button } from '@maxhub/max-ui';
 import { useMutation } from '@tanstack/react-query';
 import { messageForError } from '../../api/errors';
 import type { CalendarExport } from '../../api/client';
 import { downloadCalendar } from '../../platform/max/download';
+import { Button } from '../../shared/ui/Button';
+import { Icon } from '../../shared/ui/Icon';
+import { toast } from '../../shared/ui/Toast';
 import { createCalendarExport } from './api';
 
 /**
@@ -12,49 +14,39 @@ import { createCalendarExport } from './api';
  */
 export function CalendarExportButton({ organizationId }: { organizationId: string }) {
   const [link, setLink] = useState<CalendarExport | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-
   const prepare = useMutation({
     mutationFn: () => createCalendarExport(organizationId),
-    onSuccess: (data) => {
-      setLink(data);
-      setNotice('Ссылка готова, действует 10 минут');
-    },
-    onError: (error) => setNotice(messageForError(error)),
+    onSuccess: (data) => setLink(data),
+    onError: (error) => toast(messageForError(error), 'error'),
   });
 
   const download = () => {
     if (!link) return;
     void downloadCalendar(link.download_url, link.file_name).then((outcome) => {
-      if (outcome === 'failed') setNotice('Не удалось открыть файл. Скопируйте ссылку и откройте в браузере.');
-      else if (outcome === 'opened') setNotice('Файл открыт в браузере');
-      else setNotice('Файл передан в клиент MAX');
+      if (outcome === 'failed') toast('Не удалось открыть файл. Подготовьте его заново.', 'error');
+      else if (outcome === 'opened') toast('Файл открыт в браузере', 'success');
+      else toast('Файл передан в клиент MAX', 'success');
     });
   };
 
   return (
-    <div className="stack stack--tight">
+    <div className="export">
       {link ? (
-        <Button size="large" stretched variant="secondary" onClick={download}>
-          Скачать {link.file_name}
-        </Button>
+        <>
+          <div className="export__file">
+            <Icon name="calendar" />
+            <span>{link.file_name}</span>
+          </div>
+          <Button size="l" stretched icon="download" onClick={download}>
+            Скачать файл
+          </Button>
+          <p className="field__hint">Ссылка действует 10 минут</p>
+        </>
       ) : (
-        <Button
-          size="large"
-          stretched
-          variant="secondary"
-          loading={prepare.isPending}
-          disabled={prepare.isPending}
-          onClick={() => prepare.mutate()}
-        >
+        <Button variant="secondary" size="l" stretched icon="calendar" loading={prepare.isPending} onClick={() => prepare.mutate()}>
           Подготовить файл календаря
         </Button>
       )}
-      {notice ? (
-        <p className="muted" aria-live="polite">
-          {notice}
-        </p>
-      ) : null}
     </div>
   );
 }

@@ -159,7 +159,12 @@ func (s *Scheduler) process(ctx context.Context, r domain.Reminder) (bool, error
 		Text:               domain.ReminderText(doc.Title, org.Name, r.Key.DaysBefore, *doc.Period.ValidUntil),
 		ButtonText:         domain.ButtonOpenDocument,
 		ButtonPayload:      domain.DeepLinkPayload(doc.ID),
-		NotAfter:           r.NotAfter(s.cfg.Grace),
+		// «Напомнить через неделю» добавляет bot-service (callback-кнопка).
+		Buttons: []ports.NotificationButton{
+			{Text: domain.ButtonOpenDocument, Payload: domain.DeepLinkPayload(doc.ID)},
+			{Text: domain.ButtonRenewed, Payload: domain.RenewLinkPayload(doc.ID)},
+		},
+		NotAfter: r.NotAfter(s.cfg.Grace),
 	}
 	res, err := s.bot.Enqueue(ctx, req)
 	if err != nil {

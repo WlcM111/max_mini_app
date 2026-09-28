@@ -110,9 +110,10 @@ func toAppEvent(in *remindersv1.Event) (app.Event, error) {
 	case *remindersv1.Event_DocumentState:
 		d := payload.DocumentState
 		doc := &domain.Document{
-			ID:             d.GetDocumentId(),
-			OrganizationID: d.GetOrganizationId(),
-			Title:          d.GetTitle(),
+			ID:                   d.GetDocumentId(),
+			OrganizationID:       d.GetOrganizationId(),
+			Title:                d.GetTitle(),
+			ResponsibleAccountID: d.GetResponsibleAccountId(),
 		}
 		if p := d.GetCurrentPeriod(); p != nil {
 			doc.Period.ID = p.GetPeriodId()

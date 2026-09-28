@@ -37,7 +37,7 @@ type Config struct {
 
 	WebhookPublicURL        string        `env:"BOT_WEBHOOK_PUBLIC_URL"`
 	WebhookSecret           string        `env:"BOT_WEBHOOK_SECRET"`
-	WebhookUpdateTypes      []string      `env:"BOT_WEBHOOK_UPDATE_TYPES" envSeparator:"," envDefault:"bot_started,bot_stopped,dialog_removed,dialog_muted,dialog_unmuted,message_created"`
+	WebhookUpdateTypes      []string      `env:"BOT_WEBHOOK_UPDATE_TYPES" envSeparator:"," envDefault:"bot_started,bot_stopped,dialog_removed,dialog_muted,dialog_unmuted,message_created,message_callback"`
 	SubscriptionCheckPeriod time.Duration `env:"BOT_SUBSCRIPTION_CHECK_INTERVAL" envDefault:"10m"`
 	WebhookMaxBodyBytes     int64         `env:"BOT_WEBHOOK_MAX_BODY_BYTES" envDefault:"262144"`
 	WebhookHandlerTimeout   time.Duration `env:"BOT_WEBHOOK_TIMEOUT" envDefault:"10s"`

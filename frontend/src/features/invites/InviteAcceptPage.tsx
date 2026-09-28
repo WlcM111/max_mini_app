@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Button } from '@maxhub/max-ui';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router';
 import { messageForError } from '../../api/errors';
 import { AppShell } from '../../shared/ui/AppShell';
-import { ErrorView, LoadingView } from '../../shared/ui/StateViews';
+import { Avatar } from '../../shared/ui/Avatar';
+import { Button } from '../../shared/ui/Button';
+import { Icon } from '../../shared/ui/Icon';
+import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateViews';
 import { formatDate } from '../../shared/lib/dates';
+import { nameInitial } from '../../shared/lib/format';
 import { setLastOrganization } from '../../session/sessionStore';
 import { useSession } from '../../session/useSession';
 import { acceptInvite, previewInvite } from './api';
@@ -20,6 +23,7 @@ export function InviteAcceptPage({ token: tokenProp }: { token?: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const stateToken = (location.state as { token?: string } | null)?.token;
   const token = tokenProp ?? stateToken ?? '';
+  const home = () => navigate('/', { replace: true });
 
   const preview = useQuery({
     queryKey: ['invite-preview', token],
@@ -41,50 +45,79 @@ export function InviteAcceptPage({ token: tokenProp }: { token?: string }) {
   if (token === '') {
     return (
       <AppShell title="Приглашение">
-        <p className="card__text">Ссылка приглашения недействительна. Попросите отправить новую.</p>
-        <Button size="medium" variant="secondary" onClick={() => navigate('/', { replace: true })}>
-          На главную
-        </Button>
+        <EmptyView
+          art="link"
+          title="Ссылка приглашения недействительна"
+          description="Попросите отправить новую ссылку."
+          action={
+            <Button variant="secondary" onClick={home}>
+              На главную
+            </Button>
+          }
+        />
       </AppShell>
     );
   }
 
-  return (
-    <AppShell title="Приглашение">
-      {preview.isLoading ? <LoadingView rows={2} /> : null}
-      {preview.isError ? (
-        <>
-          <ErrorView error={preview.error} title="Приглашение недействительно" />
-          <Button size="medium" variant="secondary" onClick={() => navigate('/', { replace: true })}>
-            На главную
-          </Button>
-        </>
-      ) : null}
+  if (preview.isLoading) {
+    return (
+      <AppShell title="Приглашение">
+        <LoadingView rows={1} variant="card" />
+      </AppShell>
+    );
+  }
 
-      {preview.data ? (
+  if (preview.isError || !preview.data) {
+    return (
+      <AppShell title="Приглашение">
+        <ErrorView
+          error={preview.error}
+          title="Приглашение недействительно"
+          action={
+            <Button variant="secondary" onClick={home}>
+              На главную
+            </Button>
+          }
+        />
+      </AppShell>
+    );
+  }
+
+  const data = preview.data;
+  return (
+    <AppShell
+      title="Приглашение"
+      actionsNote={
+        notice ? (
+          <p className="actionbar__note" role="alert">
+            <Icon name="alert" size={18} />
+            {notice}
+          </p>
+        ) : null
+      }
+      actions={
         <>
-          <div className="card stack stack--tight">
-            <h2 className="card__title">{preview.data.organization_name}</h2>
-            <p className="card__text">
-              {preview.data.inviter_first_name ? `${preview.data.inviter_first_name} приглашает вас` : 'Вас приглашают'}{' '}
-              как {ROLE_TITLES[preview.data.role] ?? preview.data.role}.
-            </p>
-            <p className="muted">Действительно до {formatDate(preview.data.expires_at.slice(0, 10))}</p>
-          </div>
-          <Button size="large" stretched loading={accept.isPending} onClick={() => accept.mutate()}>
+          <Button size="l" stretched loading={accept.isPending} onClick={() => accept.mutate()}>
             Принять приглашение
           </Button>
-          <Button size="medium" stretched variant="secondary" onClick={() => navigate('/', { replace: true })}>
+          <Button variant="tertiary" stretched disabled={accept.isPending} onClick={home}>
             Отклонить
           </Button>
         </>
-      ) : null}
-
-      {notice ? (
-        <p className="field__error" role="alert" aria-live="polite">
-          {notice}
+      }
+    >
+      <section className="invite-card">
+        <Avatar text={nameInitial(data.organization_name)} seed={data.organization_name} size="l" square />
+        <h2 className="invite-card__org">{data.organization_name}</h2>
+        <p className="invite-card__text">
+          {data.inviter_first_name ? `${data.inviter_first_name} приглашает вас` : 'Вас приглашают'} в команду как{' '}
+          {ROLE_TITLES[data.role] ?? data.role}.
         </p>
-      ) : null}
+        <p className="invite-card__meta">
+          <Icon name="clock" size={16} />
+          Приглашение действует до {formatDate(data.expires_at.slice(0, 10))}
+        </p>
+      </section>
     </AppShell>
   );
 }

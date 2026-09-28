@@ -1,0 +1,124 @@
+/* Дизайн-токены «Вовремя»: бумага и чернила, цвета статусов срока, шкалы размеров и движения. */
+@font-face {
+  font-family: 'VV Numerals';
+  src: url('./fonts/vv-numerals.woff') format('woff');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
+  --bg: #eff1f6;
+  --surface: #ffffff;
+  --surface-2: #f5f6fa;
+  --surface-3: #e8ebf2;
+  --glass: rgba(245, 246, 250, 0.84);
+  --ink: #141a2c;
+  --ink-2: #4a5367;
+  --ink-3: #7a8296;
+  --line: #e2e5ed;
+  --line-2: #d0d5e0;
+
+  --accent: #2e47d1;
+  --accent-fill: #2e47d1;
+  --accent-fill-press: #2438b3;
+  --accent-soft: #e8ecff;
+  --accent-soft-2: #d8e0ff;
+  --on-accent: #ffffff;
+  --focus: rgba(46, 71, 209, 0.3);
+
+  --st-expired: #d8342b;
+  --st-expired-soft: #fdebe9;
+  --st-expired-ink: #b0231b;
+  --st-expiring: #f0a012;
+  --st-expiring-soft: #fff2d6;
+  --st-expiring-ink: #8a4d00;
+  --st-valid: #23995f;
+  --st-valid-soft: #e1f3e9;
+  --st-valid-ink: #11653e;
+  --st-none: #8993a8;
+  --st-none-soft: #eceff5;
+  --st-none-ink: #4b5467;
+
+  --shadow-card: 0 1px 2px rgba(20, 26, 44, 0.05), 0 0 0 1px rgba(20, 26, 44, 0.045);
+  --shadow-raise: 0 8px 22px -14px rgba(20, 26, 44, 0.45), 0 0 0 1px rgba(20, 26, 44, 0.06);
+  --shadow-float: 0 14px 30px -12px rgba(20, 26, 44, 0.42), 0 3px 8px -2px rgba(20, 26, 44, 0.14);
+  --shadow-sheet: 0 -18px 48px -18px rgba(12, 16, 30, 0.4);
+
+  --r-xl: 24px;
+  --r-lg: 20px;
+  --r-md: 14px;
+  --r-sm: 10px;
+
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-num: 'VV Numerals', var(--font-display);
+
+  --gutter: clamp(14px, 2.6vw + 6px, 32px);
+  --col: 680px;
+  --wide: 1120px;
+  --rail: 0px;
+  --tabbar-h: 0px;
+  --topbar-h: 48px;
+
+  --fs-display: clamp(1.75rem, 1.3rem + 1.9vw, 2.5rem);
+  --fs-title: clamp(1.625rem, 1.3rem + 1.35vw, 2.125rem);
+  --fs-h2: clamp(1.125rem, 1.06rem + 0.3vw, 1.3125rem);
+  --fs-body: 1rem;
+  --fs-sm: 0.875rem;
+  --fs-xs: 0.8125rem;
+  --fs-2xs: 0.75rem;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring: cubic-bezier(0.34, 1.5, 0.64, 1);
+  --t-fast: 150ms;
+  --t-med: 260ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0c101b;
+    --surface: #161b2a;
+    --surface-2: #1c2234;
+    --surface-3: #252c41;
+    --glass: rgba(16, 21, 34, 0.84);
+    --ink: #edf0f8;
+    --ink-2: #b1b8ca;
+    --ink-3: #848ca1;
+    --line: #252c40;
+    --line-2: #343c55;
+
+    --accent: #93a2ff;
+    --accent-fill: #5065f2;
+    --accent-fill-press: #4357de;
+    --accent-soft: #212a52;
+    --accent-soft-2: #2b3667;
+    --on-accent: #ffffff;
+    --focus: rgba(147, 162, 255, 0.38);
+
+    --st-expired: #f0605a;
+    --st-expired-soft: #3a1c1e;
+    --st-expired-ink: #ffb0a9;
+    --st-expiring: #f2a93b;
+    --st-expiring-soft: #3a2b12;
+    --st-expiring-ink: #ffd08e;
+    --st-valid: #3fb67c;
+    --st-valid-soft: #13301f;
+    --st-valid-ink: #97e3b9;
+    --st-none: #6e788e;
+    --st-none-soft: #232a3c;
+    --st-none-ink: #c4cad8;
+
+    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.045);
+    --shadow-raise: 0 10px 24px -14px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --shadow-float: 0 16px 32px -12px rgba(0, 0, 0, 0.75), 0 3px 8px rgba(0, 0, 0, 0.45);
+    --shadow-sheet: 0 -18px 48px -18px rgba(0, 0, 0, 0.8);
+  }
+}

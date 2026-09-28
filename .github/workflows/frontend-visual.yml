@@ -1,0 +1,33 @@
+# Проверка вёрстки и сравнение скриншотов мини-приложения на 4 размерах экрана.
+# Первый запуск: вручную с update_snapshots=true, затем закоммитить эталоны из артефакта.
+name: frontend-visual
+on:
+  pull_request:
+    paths: ['frontend/**']
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: 'Пересоздать эталонные скриншоты'
+        type: boolean
+        default: false
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm run visual ${{ inputs.update_snapshots && '-- --update-snapshots' || '' }}
+        env:
+          CI: 'true'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+            frontend/e2e/visual/__screenshots__

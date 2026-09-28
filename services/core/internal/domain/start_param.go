@@ -14,6 +14,7 @@ const (
 	StartDocument     StartKind = "document"
 	StartOrganization StartKind = "organization"
 	StartInvite       StartKind = "invite"
+	StartRenew        StartKind = "renew" // экран продления: кнопка «Продлил» в напоминании
 )
 
 // StartTarget — разобранный start_param.
@@ -45,6 +46,8 @@ func ParseStartTarget(param string) StartTarget {
 		return StartTarget{Kind: StartOrganization, OrganizationID: param[4:]}
 	case strings.HasPrefix(param, "inv_") && IsOpaqueToken(param[4:]):
 		return StartTarget{Kind: StartInvite, InviteToken: param[4:]}
+	case strings.HasPrefix(param, "renew_") && IsUUIDv4(param[6:]):
+		return StartTarget{Kind: StartRenew, DocumentID: param[6:]}
 	default:
 		return StartTarget{Kind: StartNone}
 	}

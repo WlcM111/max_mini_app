@@ -26,7 +26,8 @@ const docColumns = `d.id, d.public_id::text, d.organization_id, o.public_id::tex
 	coalesce(d.document_type_code, ''), d.title, coalesce(d.number, ''), coalesce(d.issuer, ''),
 	coalesce(d.responsible_label, ''), coalesce(d.notes, ''), coalesce(d.reference_url, ''),
 	d.version, coalesce(d.created_by, 0), d.created_at, d.updated_at,
-	p.id, p.public_id::text, p.valid_from, p.valid_until, p.created_at`
+	p.id, p.public_id::text, p.valid_from, p.valid_until, p.created_at,
+	coalesce(d.responsible_account_id::text, '')`
 
 func scanDocument(scan func(dest ...any) error) (domain.Document, error) {
 	var d domain.Document
@@ -34,7 +35,7 @@ func scanDocument(scan func(dest ...any) error) (domain.Document, error) {
 		&d.Title, &d.Number, &d.Issuer, &d.ResponsibleLabel, &d.Notes, &d.ReferenceURL,
 		&d.Version, &d.CreatedByID, &d.CreatedAt, &d.UpdatedAt,
 		&d.CurrentPeriod.ID, &d.CurrentPeriod.PublicID, &d.CurrentPeriod.ValidFrom,
-		&d.CurrentPeriod.ValidUntil, &d.CurrentPeriod.CreatedAt)
+		&d.CurrentPeriod.ValidUntil, &d.CurrentPeriod.CreatedAt, &d.ResponsibleAccountID)
 	d.CurrentPeriod.DocumentID = d.ID
 	d.CurrentPeriod.IsCurrent = true
 	return d, err
@@ -145,6 +146,7 @@ func (r *DocumentRepo) List(ctx context.Context, f ports.DocumentFilter) ([]doma
 		       OR ($2 = 'valid'     AND p.valid_until > $3::date + 30)
 		       OR ($2 = 'no_expiry' AND p.valid_until IS NULL))
 		  AND ($4::text IS NULL OR d.title ILIKE '%' || $4 || '%' ESCAPE '\')
+		  AND ($8::uuid IS NULL OR d.responsible_account_id = $8::uuid)
 		  AND (coalesce(p.valid_until, 'infinity'::date), d.public_id) > ($5::date, $6::uuid)
 		ORDER BY coalesce(p.valid_until, 'infinity'::date), d.public_id
 		LIMIT $7`
@@ -158,7 +160,12 @@ func (r *DocumentRepo) List(ctx context.Context, f ports.DocumentFilter) ([]doma
 		escaped := escapeLike(f.Query)
 		query = &escaped
 	}
-	rows, err := r.db(ctx).Query(ctx, q, f.OrganizationID, status, f.Today, query, f.AfterUntil, f.AfterID, f.Limit)
+	var responsible *string
+	if f.ResponsibleAccountID != "" {
+		v := f.ResponsibleAccountID
+		responsible = &v
+	}
+	rows, err := r.db(ctx).Query(ctx, q, f.OrganizationID, status, f.Today, query, f.AfterUntil, f.AfterID, f.Limit, responsible)
 	if err != nil {
 		return nil, fmt.Errorf("list documents: %w", err)
 	}
@@ -224,12 +231,13 @@ func (r *DocumentRepo) Count(ctx context.Context, orgID int64) (int, error) {
 func (r *DocumentRepo) Create(ctx context.Context, doc domain.Document, createdBy int64, now time.Time) (domain.Document, error) {
 	started := time.Now()
 	const qd = `INSERT INTO core.documents (public_id, organization_id, document_type_code, title, number,
-		issuer, responsible_label, notes, reference_url, version, created_by, updated_by, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1, $10, $10, $11, $11) RETURNING id`
+		issuer, responsible_label, notes, reference_url, version, created_by, updated_by, created_at, updated_at,
+		responsible_account_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1, $10, $10, $11, $11, $12::uuid) RETURNING id`
 	var id int64
 	err := r.db(ctx).QueryRow(ctx, qd, doc.PublicID, doc.OrganizationID, nilIfEmpty(doc.DocumentTypeCode),
 		doc.Title, nilIfEmpty(doc.Number), nilIfEmpty(doc.Issuer), nilIfEmpty(doc.ResponsibleLabel),
-		nilIfEmpty(doc.Notes), nilIfEmpty(doc.ReferenceURL), createdBy, now).Scan(&id)
+		nilIfEmpty(doc.Notes), nilIfEmpty(doc.ReferenceURL), createdBy, now, nilIfEmpty(doc.ResponsibleAccountID)).Scan(&id)
 	r.observe("documents.create", started)
 	if err != nil {
 		return domain.Document{}, fmt.Errorf("create document: %w", err)
@@ -251,11 +259,11 @@ func (r *DocumentRepo) Update(ctx context.Context, doc domain.Document, updatedB
 	started := time.Now()
 	const q = `UPDATE core.documents SET document_type_code = $2, title = $3, number = $4, issuer = $5,
 		responsible_label = $6, notes = $7, reference_url = $8, version = version + 1,
-		updated_by = $9, updated_at = $10 WHERE id = $1 RETURNING version`
+		updated_by = $9, updated_at = $10, responsible_account_id = $11::uuid WHERE id = $1 RETURNING version`
 	var version int
 	err := r.db(ctx).QueryRow(ctx, q, doc.ID, nilIfEmpty(doc.DocumentTypeCode), doc.Title,
 		nilIfEmpty(doc.Number), nilIfEmpty(doc.Issuer), nilIfEmpty(doc.ResponsibleLabel),
-		nilIfEmpty(doc.Notes), nilIfEmpty(doc.ReferenceURL), updatedBy, now).Scan(&version)
+		nilIfEmpty(doc.Notes), nilIfEmpty(doc.ReferenceURL), updatedBy, now, nilIfEmpty(doc.ResponsibleAccountID)).Scan(&version)
 	r.observe("documents.update", started)
 	if err != nil {
 		return domain.Document{}, fmt.Errorf("update document: %w", err)

@@ -59,6 +59,7 @@ function showMockBanner(): void {
   banner.className = 'mock-banner';
   banner.textContent = 'Имитация MAX';
   document.body.prepend(banner);
+  document.documentElement.classList.add('has-mock-bar');
 }
 
 /** Создаёт имитацию Bridge: подписывает initData и подменяет системные действия. */

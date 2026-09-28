@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { render } from '@testing-library/react';
-import { MaxUI } from '@maxhub/max-ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { SessionContext } from '../session/useSession';
@@ -42,12 +41,10 @@ export function renderWithProviders(
     refreshMe: async () => undefined,
   };
   return render(
-    <MaxUI platform="android" colorScheme="light">
       <QueryClientProvider client={queryClient}>
         <SessionContext.Provider value={value}>
           <RouterProvider router={router} />
         </SessionContext.Provider>
-      </QueryClientProvider>
-    </MaxUI>,
+      </QueryClientProvider>,
   );
 }

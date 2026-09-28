@@ -1,7 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@maxhub/max-ui/dist/styles.css';
-import './shared/styles/app.css';
+import './shared/styles/tokens.css';
+import './shared/styles/base.css';
+import './shared/styles/components.css';
+import './shared/styles/pages.css';
 import { App } from './app/App';
 import { ErrorBoundary } from './app/ErrorBoundary';
 import { flushTelemetry } from './shared/lib/telemetry';

@@ -182,9 +182,11 @@ func (r *ProjectionRepo) GetDocument(ctx context.Context, id string) (domain.Doc
 	var validFrom, validUntil *time.Time
 	var version int64
 	err := r.db(ctx).QueryRow(ctx, `
-SELECT document_id::text, organization_id::text, title, period_id::text, valid_from, valid_until, version, deleted
+SELECT document_id::text, organization_id::text, title, period_id::text, valid_from, valid_until, version, deleted,
+       coalesce(responsible_account_id::text, '')
 FROM reminders.documents WHERE document_id = $1::uuid`, id).
-		Scan(&d.ID, &d.OrganizationID, &d.Title, &periodID, &validFrom, &validUntil, &version, &d.Deleted)
+		Scan(&d.ID, &d.OrganizationID, &d.Title, &periodID, &validFrom, &validUntil, &version, &d.Deleted,
+			&d.ResponsibleAccountID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Document{}, domain.ErrNotFound
 	}
@@ -224,14 +226,16 @@ func (r *ProjectionRepo) UpsertDocument(ctx context.Context, d domain.Document) 
 	db := r.db(ctx)
 	_, err := db.Exec(ctx, `
 INSERT INTO reminders.documents (document_id, organization_id, title, period_id, valid_from, valid_until,
-                                 version, deleted, applied_at)
-VALUES ($1::uuid, $2::uuid, $3, $4::uuid, $5::date, $6::date, $7, false, now())
+                                 version, deleted, applied_at, responsible_account_id)
+VALUES ($1::uuid, $2::uuid, $3, $4::uuid, $5::date, $6::date, $7, false, now(), $8::uuid)
 ON CONFLICT (document_id) DO UPDATE
 SET organization_id = excluded.organization_id, title = excluded.title, period_id = excluded.period_id,
     valid_from = excluded.valid_from, valid_until = excluded.valid_until,
-    version = excluded.version, deleted = false, applied_at = now()`,
+    version = excluded.version, deleted = false, applied_at = now(),
+    responsible_account_id = excluded.responsible_account_id`,
 		d.ID, d.OrganizationID, d.Title, nullString(d.Period.ID),
-		dateString(d.Period.ValidFrom), dateString(d.Period.ValidUntil), int64(d.Version))
+		dateString(d.Period.ValidFrom), dateString(d.Period.ValidUntil), int64(d.Version),
+		nullString(d.ResponsibleAccountID))
 	if err != nil {
 		return fmt.Errorf("upsert document: %w", err)
 	}

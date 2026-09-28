@@ -19,6 +19,8 @@ export interface DocumentFormState {
   validUntil: string | null;
   indefinite: boolean;
   offsets: number[];
+  /** Ответственный участник (UUID аккаунта); напоминания уходят лично ему. */
+  responsibleAccountId?: string | null;
 }
 
 export type FormErrors = Partial<Record<keyof DocumentFormState | 'form', string>>;
@@ -35,6 +37,7 @@ export const emptyDocumentForm = (offsets: number[] = [30, 7, 1]): DocumentFormS
   validUntil: null,
   indefinite: false,
   offsets,
+  responsibleAccountId: null,
 });
 
 /** Заполняет форму по карточке документа для режима изменения. */
@@ -51,6 +54,7 @@ export function formFromDocument(document: Document): DocumentFormState {
     validUntil: document.current_period.valid_until ?? null,
     indefinite: document.current_period.valid_until === null,
     offsets: [...document.reminder_offsets_days],
+    responsibleAccountId: document.responsible_account_id ?? null,
   };
 }
 
@@ -90,6 +94,7 @@ export function toCreateBody(id: string, form: DocumentFormState): DocumentCreat
     number: trimmed(form.number),
     issuer: trimmed(form.issuer),
     responsible_label: trimmed(form.responsibleLabel),
+    responsible_account_id: form.responsibleAccountId ?? null,
     notes: trimmed(form.notes),
     reference_url: trimmed(form.referenceUrl),
     valid_from: form.validFrom,
@@ -107,6 +112,7 @@ export function toUpdateBody(expectedVersion: number, form: DocumentFormState): 
     number: trimmed(form.number),
     issuer: trimmed(form.issuer),
     responsible_label: trimmed(form.responsibleLabel),
+    responsible_account_id: form.responsibleAccountId ?? null,
     notes: trimmed(form.notes),
     reference_url: trimmed(form.referenceUrl),
     valid_from: form.validFrom,

@@ -119,7 +119,38 @@ type NotificationRequest struct {
 	Text               string
 	ButtonText         string
 	ButtonPayload      string
-	NotAfter           time.Time
+	// Buttons — кнопки под сообщением (до 3); если пусто — используется ButtonText/ButtonPayload.
+	Buttons  []NotificationButton
+	NotAfter time.Time
+}
+
+// NotificationButton — кнопка открытия мини-приложения с payload диплинка.
+type NotificationButton struct {
+	Text    string
+	Payload string
+}
+
+// DigestRecipient — получатель недельной сводки в организации.
+type DigestRecipient struct {
+	OrganizationID     string
+	AccountID          string
+	MaxUserID          int64
+	NotifyLocalMinutes int
+	OrganizationName   string
+	Timezone           string
+}
+
+// DigestDocument — документ для недельной сводки.
+type DigestDocument struct {
+	Title                string
+	ValidUntil           time.Time
+	ResponsibleAccountID string
+}
+
+// DigestRepo — выборки для недельной сводки (реализует postgres.ProjectionRepo).
+type DigestRepo interface {
+	ListDigestRecipients(ctx context.Context) ([]DigestRecipient, error)
+	ListDigestDocuments(ctx context.Context, organizationID string, until time.Time) ([]DigestDocument, error)
 }
 
 // NotificationResult — результат приёма задания bot-service.

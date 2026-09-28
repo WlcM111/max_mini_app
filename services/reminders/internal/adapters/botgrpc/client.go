@@ -43,7 +43,13 @@ func (c *Client) Enqueue(ctx context.Context, req ports.NotificationRequest) (po
 		Silent:             false,
 		NotAfter:           timestamppb.New(req.NotAfter.UTC()),
 	}
-	if req.ButtonText != "" {
+	for _, b := range req.Buttons {
+		pbReq.Buttons = append(pbReq.Buttons, &botv1.Button{
+			Text:   b.Text,
+			Action: &botv1.Button_OpenAppPayload{OpenAppPayload: b.Payload},
+		})
+	}
+	if len(req.Buttons) == 0 && req.ButtonText != "" {
 		pbReq.Buttons = []*botv1.Button{{
 			Text:   req.ButtonText,
 			Action: &botv1.Button_OpenAppPayload{OpenAppPayload: req.ButtonPayload},

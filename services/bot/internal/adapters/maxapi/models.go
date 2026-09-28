@@ -124,6 +124,9 @@ func renderButton(b domain.Button, profile domain.Profile, kind ButtonKind) (key
 			return keyboardButton{Type: "open_app", Text: b.Text, WebApp: profile.Username, Payload: &payload}, nil
 		}
 		return keyboardButton{Type: "link", Text: b.Text, URL: profile.OpenAppLink(b.Payload)}, nil
+	case domain.ActionCallback:
+		payload := b.Payload
+		return keyboardButton{Type: "callback", Text: b.Text, Payload: &payload}, nil
 	default:
 		return keyboardButton{}, fmt.Errorf("неизвестное действие кнопки: %q", b.Action)
 	}

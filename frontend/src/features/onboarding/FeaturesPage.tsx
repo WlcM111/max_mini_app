@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { Button, Switch } from '@maxhub/max-ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { queryKeys } from '../../api/queryKeys';
 import { ApiError, messageForError } from '../../api/errors';
 import { AppShell } from '../../shared/ui/AppShell';
+import { Button } from '../../shared/ui/Button';
+import { Icon } from '../../shared/ui/Icon';
 import { ErrorView, LoadingView } from '../../shared/ui/StateViews';
+import { Steps } from '../../shared/ui/Steps';
+import { ToggleRow } from '../../shared/ui/Switch';
+import { uuidV4 } from '../../shared/lib/uuid';
 import { setLastOrganization } from '../../session/sessionStore';
 import { useSession } from '../../session/useSession';
-import { uuidV4 } from '../../shared/lib/uuid';
 import { createOrganization, getCatalog } from '../organizations/api';
 import { getDraft, updateDraft } from './onboardingDraft';
 
@@ -20,7 +23,6 @@ export function FeaturesPage() {
   const draft = getDraft();
   const [selected, setSelected] = useState<string[]>(draft.featureCodes);
   const [error, setError] = useState<string | null>(null);
-
   const catalog = useQuery({ queryKey: queryKeys.catalog(), queryFn: getCatalog, staleTime: Infinity });
 
   const create = useMutation({
@@ -51,16 +53,19 @@ export function FeaturesPage() {
     },
   });
 
+  const steps = <Steps current={2} total={4} />;
+
   if (catalog.isLoading) {
     return (
-      <AppShell title="Что относится к вам">
-        <LoadingView rows={4} />
+      <AppShell title="Что относится к вам" headerExtra={steps}>
+        <LoadingView rows={4} variant="form" />
       </AppShell>
     );
   }
+
   if (catalog.isError || !catalog.data) {
     return (
-      <AppShell title="Что относится к вам">
+      <AppShell title="Что относится к вам" headerExtra={steps}>
         <ErrorView error={catalog.error} onRetry={() => void catalog.refetch()} />
       </AppShell>
     );
@@ -69,36 +74,35 @@ export function FeaturesPage() {
   return (
     <AppShell
       title="Что относится к вам"
-      subtitle="Шаг 2 из 4"
+      subtitle="От ответов зависит список нужных документов. Изменить их можно позже в профиле организации."
+      headerExtra={steps}
+      actionsNote={
+        error ? (
+          <p className="actionbar__note" role="alert">
+            <Icon name="alert" size={18} />
+            {error}
+          </p>
+        ) : null
+      }
       actions={
-        <Button size="large" stretched loading={create.isPending} onClick={() => create.mutate()}>
+        <Button size="l" stretched loading={create.isPending} onClick={() => create.mutate()}>
           Создать организацию
         </Button>
       }
     >
-      <p className="card__text">Ответы помогут подобрать документы, которые обычно нужны такому бизнесу.</p>
-      {catalog.data.features.map((feature) => (
-        <div key={feature.code} className="card row row--between">
-          <span className="grow">
-            <span className="list-item__title">{feature.question}</span>
-            {feature.hint ? <span className="list-item__meta">{feature.hint}</span> : null}
-          </span>
-          <Switch
+      <div className="group__card">
+        {catalog.data.features.map((feature) => (
+          <ToggleRow
+            key={feature.code}
+            title={feature.question}
+            hint={feature.hint ?? undefined}
             checked={selected.includes(feature.code)}
-            aria-label={feature.question}
-            onChange={(event) =>
-              setSelected((prev) =>
-                event.target.checked ? [...prev, feature.code] : prev.filter((code) => code !== feature.code),
-              )
+            onChange={(checked) =>
+              setSelected((prev) => (checked ? [...prev, feature.code] : prev.filter((code) => code !== feature.code)))
             }
           />
-        </div>
-      ))}
-      {error ? (
-        <p className="field__error" role="alert" aria-live="polite">
-          {error}
-        </p>
-      ) : null}
+        ))}
+      </div>
     </AppShell>
   );
 }

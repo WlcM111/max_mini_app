@@ -1,12 +1,15 @@
 package httpapi
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
 
 	"vovremya/services/core/internal/adapters/ics"
+	"vovremya/services/core/internal/adapters/xlsx"
 	"vovremya/services/core/internal/app"
 	"vovremya/services/core/internal/domain"
 )
@@ -40,7 +43,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 	start := startTargetDTO{Kind: string(result.Start.Kind)}
 	switch result.Start.Kind {
-	case domain.StartDocument:
+	case domain.StartDocument, domain.StartRenew:
 		start.DocumentID = ptr(result.Start.DocumentID)
 	case domain.StartOrganization:
 		start.OrganizationID = ptr(result.Start.OrganizationID)
@@ -242,8 +245,13 @@ func (s *Server) handleListDocuments(w http.ResponseWriter, r *http.Request, act
 		}
 		limit = parsed
 	}
+	// responsible=me — «Мои документы»: где ответственный — текущий пользователь.
+	responsible := q.Get("responsible")
+	if responsible == "me" {
+		responsible = actor.Account.PublicID
+	}
 	page, err := s.app.ListDocuments(r.Context(), actor, r.PathValue("organizationId"),
-		domain.DeadlineStatus(q.Get("status")), q.Get("q"), q.Get("cursor"), limit)
+		domain.DeadlineStatus(q.Get("status")), q.Get("q"), q.Get("cursor"), limit, responsible)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -256,18 +264,19 @@ func (s *Server) handleListDocuments(w http.ResponseWriter, r *http.Request, act
 }
 
 type documentBody struct {
-	ID               string  `json:"id"`
-	DocumentTypeCode *string `json:"document_type_code"`
-	Title            string  `json:"title"`
-	Number           *string `json:"number"`
-	Issuer           *string `json:"issuer"`
-	ResponsibleLabel *string `json:"responsible_label"`
-	Notes            *string `json:"notes"`
-	ReferenceURL     *string `json:"reference_url"`
-	ValidFrom        *string `json:"valid_from"`
-	ValidUntil       *string `json:"valid_until"`
-	ReminderOffsets  []int   `json:"reminder_offsets_days"`
-	ExpectedVersion  int     `json:"expected_version"`
+	ID                   string  `json:"id"`
+	DocumentTypeCode     *string `json:"document_type_code"`
+	Title                string  `json:"title"`
+	Number               *string `json:"number"`
+	Issuer               *string `json:"issuer"`
+	ResponsibleLabel     *string `json:"responsible_label"`
+	ResponsibleAccountID *string `json:"responsible_account_id"`
+	Notes                *string `json:"notes"`
+	ReferenceURL         *string `json:"reference_url"`
+	ValidFrom            *string `json:"valid_from"`
+	ValidUntil           *string `json:"valid_until"`
+	ReminderOffsets      []int   `json:"reminder_offsets_days"`
+	ExpectedVersion      int     `json:"expected_version"`
 }
 
 func (b documentBody) toInput(present map[string]any) (app.DocumentInput, error) {
@@ -295,6 +304,9 @@ func (b documentBody) toInput(present map[string]any) (app.DocumentInput, error)
 	if b.ResponsibleLabel != nil {
 		in.ResponsibleLabel = *b.ResponsibleLabel
 	}
+	if b.ResponsibleAccountID != nil {
+		in.ResponsibleAccountID = *b.ResponsibleAccountID
+	}
 	if b.Notes != nil {
 		in.Notes = *b.Notes
 	}
@@ -306,6 +318,7 @@ func (b documentBody) toInput(present map[string]any) (app.DocumentInput, error)
 	_, in.SetNumber = present["number"]
 	_, in.SetIssuer = present["issuer"]
 	_, in.SetResponsible = present["responsible_label"]
+	_, in.SetResponsibleAccount = present["responsible_account_id"]
 	_, in.SetNotes = present["notes"]
 	_, in.SetReference = present["reference_url"]
 	_, in.SetValidFrom = present["valid_from"]
@@ -717,6 +730,20 @@ func (s *Server) handleDownloadCalendar(w http.ResponseWriter, r *http.Request) 
 		s.fail(w, r, err)
 		return
 	}
+	// ?format=xlsx — тот же одноразовый токен отдаёт реестр для бухгалтерии и проверок.
+	if r.URL.Query().Get("format") == "xlsx" {
+		book, err := xlsx.Registry(data)
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+		w.Header().Set("Content-Disposition", `attachment; filename="vovremya-reestr-`+firstEight(data.Organization.PublicID)+`.xlsx"`)
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(book)
+		return
+	}
 	body := ics.Render(data)
 	fileName := "vovremya-" + firstEight(data.Organization.PublicID) + ".ics"
 	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
@@ -724,6 +751,50 @@ func (s *Server) handleDownloadCalendar(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(body))
+}
+
+// maxImageBodyBytes — фото до 5 МБ в Base64 плюс поля JSON.
+const maxImageBodyBytes = 7 << 20
+
+// handleDraftDocumentImage — черновик карточки по фотографии документа (FR-21).
+func (s *Server) handleDraftDocumentImage(w http.ResponseWriter, r *http.Request, actor app.Actor) {
+	if !s.assistantLimiter.Allow("draft:"+actor.Account.PublicID, time.Now()) {
+		s.fail(w, r, domain.ErrRateLimited)
+		return
+	}
+	raw, err := io.ReadAll(io.LimitReader(r.Body, maxImageBodyBytes+1))
+	if err != nil || len(raw) > maxImageBodyBytes {
+		s.fail(w, r, domain.ValidationFor("image", domain.CodeTooLong, "фотография больше 5 МБ"))
+		return
+	}
+	var body struct {
+		Image    string `json:"image"`
+		MimeType string `json:"mime_type"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		s.fail(w, r, domain.ValidationFor("image", domain.CodeInvalidFormat, "ожидается JSON с полями image и mime_type"))
+		return
+	}
+	image, err := base64.StdEncoding.DecodeString(body.Image)
+	if err != nil {
+		s.fail(w, r, domain.ValidationFor("image", domain.CodeInvalidFormat, "изображение должно быть в Base64"))
+		return
+	}
+	draft, err := s.app.DraftDocumentFromImage(r.Context(), actor, r.PathValue("organizationId"), image, body.MimeType)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, documentDraftDTO{
+		Title:            draft.Title,
+		Number:           nullable(draft.Number),
+		Issuer:           nullable(draft.Issuer),
+		ValidFrom:        nullable(draft.ValidFrom),
+		ValidUntil:       nullable(draft.ValidUntil),
+		DocumentTypeCode: nullable(draft.DocumentTypeCode),
+		Offsets:          intsOrEmpty(draft.Offsets),
+		Confidence:       draft.Confidence,
+	})
 }
 
 // handleClientEvents — POST /client-events.

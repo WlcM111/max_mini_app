@@ -243,16 +243,17 @@ type periodDTO struct {
 }
 
 type documentListItemDTO struct {
-	ID               string  `json:"id"`
-	OrganizationID   string  `json:"organization_id"`
-	DocumentTypeCode *string `json:"document_type_code"`
-	Title            string  `json:"title"`
-	ResponsibleLabel *string `json:"responsible_label"`
-	ValidUntil       *string `json:"valid_until"`
-	Status           string  `json:"status"`
-	DaysLeft         *int    `json:"days_left"`
-	NextReminderAt   *string `json:"next_reminder_at"`
-	RemindersState   string  `json:"reminders_state"`
+	ID                   string  `json:"id"`
+	OrganizationID       string  `json:"organization_id"`
+	DocumentTypeCode     *string `json:"document_type_code"`
+	Title                string  `json:"title"`
+	ResponsibleLabel     *string `json:"responsible_label"`
+	ResponsibleAccountID *string `json:"responsible_account_id"`
+	ValidUntil           *string `json:"valid_until"`
+	Status               string  `json:"status"`
+	DaysLeft             *int    `json:"days_left"`
+	NextReminderAt       *string `json:"next_reminder_at"`
+	RemindersState       string  `json:"reminders_state"`
 }
 
 type documentPageDTO struct {
@@ -261,28 +262,29 @@ type documentPageDTO struct {
 }
 
 type documentDTO struct {
-	ID               string      `json:"id"`
-	OrganizationID   string      `json:"organization_id"`
-	DocumentTypeCode *string     `json:"document_type_code"`
-	Title            string      `json:"title"`
-	Number           *string     `json:"number"`
-	Issuer           *string     `json:"issuer"`
-	ResponsibleLabel *string     `json:"responsible_label"`
-	Notes            *string     `json:"notes"`
-	ReferenceURL     *string     `json:"reference_url"`
-	CurrentPeriod    periodDTO   `json:"current_period"`
-	Periods          []periodDTO `json:"periods"`
-	Status           string      `json:"status"`
-	DaysLeft         *int        `json:"days_left"`
-	ReminderOffsets  []int       `json:"reminder_offsets_days"`
-	NextReminderAt   *string     `json:"next_reminder_at"`
-	RenewalSteps     []string    `json:"renewal_steps"`
-	DataStatus       *string     `json:"data_status"`
-	RemindersState   string      `json:"reminders_state"`
-	Version          int         `json:"version"`
-	CanEdit          bool        `json:"can_edit"`
-	CreatedAt        string      `json:"created_at"`
-	UpdatedAt        string      `json:"updated_at"`
+	ID                   string      `json:"id"`
+	OrganizationID       string      `json:"organization_id"`
+	DocumentTypeCode     *string     `json:"document_type_code"`
+	Title                string      `json:"title"`
+	Number               *string     `json:"number"`
+	Issuer               *string     `json:"issuer"`
+	ResponsibleLabel     *string     `json:"responsible_label"`
+	ResponsibleAccountID *string     `json:"responsible_account_id"`
+	Notes                *string     `json:"notes"`
+	ReferenceURL         *string     `json:"reference_url"`
+	CurrentPeriod        periodDTO   `json:"current_period"`
+	Periods              []periodDTO `json:"periods"`
+	Status               string      `json:"status"`
+	DaysLeft             *int        `json:"days_left"`
+	ReminderOffsets      []int       `json:"reminder_offsets_days"`
+	NextReminderAt       *string     `json:"next_reminder_at"`
+	RenewalSteps         []string    `json:"renewal_steps"`
+	DataStatus           *string     `json:"data_status"`
+	RemindersState       string      `json:"reminders_state"`
+	Version              int         `json:"version"`
+	CanEdit              bool        `json:"can_edit"`
+	CreatedAt            string      `json:"created_at"`
+	UpdatedAt            string      `json:"updated_at"`
 }
 
 func toPeriodDTO(p domain.Period) periodDTO {
@@ -293,11 +295,12 @@ func toPeriodDTO(p domain.Period) periodDTO {
 func toDocumentListItem(v app.DocumentView) documentListItemDTO {
 	item := documentListItemDTO{
 		ID: v.Document.PublicID, OrganizationID: v.OrganizationID,
-		DocumentTypeCode: nullable(v.Document.DocumentTypeCode),
-		Title:            v.Document.Title,
-		ResponsibleLabel: nullable(v.Document.ResponsibleLabel),
-		ValidUntil:       dateOrNil(v.Document.CurrentPeriod.ValidUntil),
-		Status:           string(v.Status), DaysLeft: v.DaysLeft,
+		DocumentTypeCode:     nullable(v.Document.DocumentTypeCode),
+		Title:                v.Document.Title,
+		ResponsibleLabel:     nullable(v.Document.ResponsibleLabel),
+		ResponsibleAccountID: nullable(v.Document.ResponsibleAccountID),
+		ValidUntil:           dateOrNil(v.Document.CurrentPeriod.ValidUntil),
+		Status:               string(v.Status), DaysLeft: v.DaysLeft,
 		RemindersState: string(v.RemindersState),
 	}
 	if v.NextReminderAt != nil {
@@ -324,8 +327,9 @@ func toDocumentDTO(v app.DocumentView) documentDTO {
 		DocumentTypeCode: nullable(v.Document.DocumentTypeCode), Title: v.Document.Title,
 		Number: nullable(v.Document.Number), Issuer: nullable(v.Document.Issuer),
 		ResponsibleLabel: nullable(v.Document.ResponsibleLabel), Notes: nullable(v.Document.Notes),
-		ReferenceURL:  nullable(v.Document.ReferenceURL),
-		CurrentPeriod: toPeriodDTO(v.Document.CurrentPeriod), Periods: periods,
+		ResponsibleAccountID: nullable(v.Document.ResponsibleAccountID),
+		ReferenceURL:         nullable(v.Document.ReferenceURL),
+		CurrentPeriod:        toPeriodDTO(v.Document.CurrentPeriod), Periods: periods,
 		Status: string(v.Status), DaysLeft: v.DaysLeft, ReminderOffsets: offsets,
 		RenewalSteps: steps, DataStatus: nullable(v.DataStatus),
 		RemindersState: string(v.RemindersState), Version: v.Document.Version, CanEdit: v.CanEdit,

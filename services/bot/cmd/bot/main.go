@@ -182,6 +182,7 @@ func serve(cfg config.Config, log *slog.Logger) error {
 	monitor := app.NewQueueMonitor(messageRepo, depth, appMetrics, log)
 	monitor.Interval = cfg.QueueDepthRefreshPeriod
 	webhookService := app.NewWebhookService(pool, inboundRepo, recipientRepo, messageRepo, profiles, sysClock, log, appMetrics)
+	webhookService.UseCallbackAnswers(maxClient) // «Напомнить через неделю»
 	profileLoader := app.NewProfileLoader(maxClient, profiles, log)
 	profileLoader.RetryInterval = cfg.ProfileRetryInterval
 	retention := app.NewRetentionJob(inboundRepo, messageRepo, recipientRepo, sysClock, app.RetentionConfig{

@@ -10,6 +10,8 @@ import {
 } from '../../api/client';
 
 export interface DocumentsFilter {
+  /** me — только документы, где ответственный — текущий пользователь */
+  responsible?: string;
   status?: string;
   q?: string;
   cursor?: string;
@@ -27,6 +29,7 @@ export const listDocuments = (organizationId: string, filter: DocumentsFilter = 
           ...(filter.q ? { q: filter.q } : {}),
           ...(filter.cursor ? { cursor: filter.cursor } : {}),
           ...(filter.limit ? { limit: filter.limit } : {}),
+          ...(filter.responsible ? { responsible: filter.responsible } : {}),
         },
       },
       headers,
@@ -78,6 +81,17 @@ export const deleteDocument = (documentId: string): Promise<void> =>
  * Черновик карточки документа из свободного текста (FR-21). Ничего не сохраняет:
  * поля подставляются в форму, которую подтверждает пользователь.
  */
+/** Черновик по фотографии: изображение уходит в GigaChat и там сразу удаляется. */
+export const draftDocumentFromImage = (organizationId: string, image: string, mimeType: 'image/jpeg' | 'image/png'): Promise<DocumentDraft> =>
+  run(({ headers, signal }) =>
+    client.POST('/organizations/{organizationId}/documents/draft-image', {
+      params: { path: { organizationId } },
+      body: { image, mime_type: mimeType },
+      headers,
+      signal,
+    }),
+  );
+
 export const draftDocument = (organizationId: string, text: string): Promise<DocumentDraft> =>
   run(({ headers, signal }) =>
     client.POST('/organizations/{organizationId}/documents/draft', {

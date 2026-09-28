@@ -21,6 +21,14 @@ type envelope struct {
 	Timestamp  json.RawMessage `json:"timestamp"`
 	User       json.RawMessage `json:"user"`
 	Message    json.RawMessage `json:"message"`
+	Callback   json.RawMessage `json:"callback"`
+}
+
+// rawCallback — нажатие callback-кнопки (message_callback).
+type rawCallback struct {
+	CallbackID json.RawMessage `json:"callback_id"`
+	Payload    json.RawMessage `json:"payload"`
+	User       json.RawMessage `json:"user"`
 }
 
 type rawUser struct {
@@ -61,6 +69,23 @@ func ParseUpdate(body []byte) app.InboundUpdate {
 	if u, ok := parseUser(env.User); ok {
 		in.Update.MaxUserID = u.id
 		in.FromBot = u.isBot
+	}
+	if len(env.Callback) > 0 {
+		var cb rawCallback
+		if err := json.Unmarshal(env.Callback, &cb); err == nil {
+			if id, ok := parseString(cb.CallbackID); ok {
+				in.CallbackID = id
+			}
+			if payload, ok := parseString(cb.Payload); ok {
+				in.CallbackPayload = payload
+			}
+			if in.Update.MaxUserID == 0 {
+				if u, ok := parseUser(cb.User); ok {
+					in.Update.MaxUserID = u.id
+					in.FromBot = u.isBot
+				}
+			}
+		}
 	}
 	if len(env.Message) > 0 {
 		var msg rawMessage

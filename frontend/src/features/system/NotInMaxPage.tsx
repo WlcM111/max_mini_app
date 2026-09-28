@@ -1,21 +1,26 @@
-import { Button } from '@maxhub/max-ui';
+import { BrandMark } from '../../shared/ui/BrandMark';
+import { Button } from '../../shared/ui/Button';
 
-/** Приложение открыто вне MAX: пользовательского контекста нет (spec §3). */
+/** Приложение открыто вне MAX: без данных запуска работа невозможна. */
 export function NotInMaxPage({ onRetry }: { onRetry?: () => void }) {
   return (
-    <div className="app-shell">
-      <main className="app-content">
-        <h1 className="app-header__title">Откройте приложение из чата с ботом в MAX</h1>
-        <p className="card__text">
-          «Вовремя» работает внутри мессенджера MAX: так приложение узнаёт, кто вы, и показывает документы
-          вашей организации.
+    <main className="system">
+      <div className="system__card">
+        <BrandMark size={72} />
+        <h1 className="system__title" tabIndex={-1}>
+          Откройте приложение из чата с ботом в MAX
+        </h1>
+        <p className="system__text">
+          «Вовремя» работает внутри мессенджера MAX: так приложение узнаёт, кто вы, и показывает документы вашей организации.
         </p>
         {onRetry ? (
-          <Button size="large" stretched variant="secondary" onClick={onRetry}>
-            Повторить
-          </Button>
+          <div className="system__actions">
+            <Button variant="secondary" size="l" stretched icon="refresh" onClick={onRetry}>
+              Повторить
+            </Button>
+          </div>
         ) : null}
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

@@ -143,14 +143,23 @@ func (e *env) caseMain(ctx context.Context) {
 		log.Fatalf("e2e: сообщение не найдено в буфере режима stub: %s", dump(msgs))
 	}
 	fmt.Printf("   текст: %s\n", msg.Text)
-	if len(msg.Buttons) != 1 {
-		log.Fatalf("e2e: ожидалась одна кнопка, получено %d", len(msg.Buttons))
+	if len(msg.Buttons) != 3 {
+		log.Fatalf("e2e: ожидались три кнопки (открыть карточку, продлил, отложить), получено %d: %+v",
+			len(msg.Buttons), msg.Buttons)
 	}
 	wantURL := strings.Replace(profile.GetOpenAppLinkTemplate(), "{payload}", "doc_"+docFirst, 1)
+	wantRenewURL := strings.Replace(profile.GetOpenAppLinkTemplate(), "{payload}", "renew_"+docFirst, 1)
 	if msg.Buttons[0].URL != wantURL {
-		log.Fatalf("e2e: диплинк кнопки %q, ожидался %q", msg.Buttons[0].URL, wantURL)
+		log.Fatalf("e2e: диплинк кнопки карточки %q, ожидался %q", msg.Buttons[0].URL, wantURL)
 	}
-	fmt.Printf("   кнопка: %s → %s\n", msg.Buttons[0].Text, msg.Buttons[0].URL)
+	if msg.Buttons[1].URL != wantRenewURL {
+		log.Fatalf("e2e: диплинк кнопки продления %q, ожидался %q", msg.Buttons[1].URL, wantRenewURL)
+	}
+	if msg.Buttons[2].Payload != "snooze:"+key {
+		log.Fatalf("e2e: кнопка отложенного напоминания %+v, ожидался payload snooze:%s", msg.Buttons[2], key)
+	}
+	fmt.Printf("   кнопки: %s → %s | %s → %s | %s (отложить на неделю)\n",
+		msg.Buttons[0].Text, msg.Buttons[0].URL, msg.Buttons[1].Text, msg.Buttons[1].URL, msg.Buttons[2].Text)
 
 	step("6. Повторная постановка задания не создаёт второго сообщения")
 	// Ключ идемпотентности того же вида, что у reminders-service, но с отдельным
@@ -292,8 +301,8 @@ func (e *env) caseBotRecovered(ctx context.Context) {
 	fmt.Printf("   состояние: %s, отправлено в %s\n", sent.GetStatus(), sent.GetSentAt().AsTime().Format(time.RFC3339))
 	msg := waitMessage(e, maxUID, "Разрешение на вывеску", 30*time.Second)
 	wantURL := strings.Replace(profile.GetOpenAppLinkTemplate(), "{payload}", "doc_"+docSecond, 1)
-	if len(msg.Buttons) != 1 || msg.Buttons[0].URL != wantURL {
-		log.Fatalf("e2e: кнопка сообщения: %+v, ожидался диплинк %s", msg.Buttons, wantURL)
+	if len(msg.Buttons) != 3 || msg.Buttons[0].URL != wantURL {
+		log.Fatalf("e2e: кнопки сообщения: %+v, первой ожидалась карточка по диплинку %s", msg.Buttons, wantURL)
 	}
 	fmt.Printf("   текст: %s\n", firstLine(msg.Text))
 	fmt.Println("\nСценарий bot-recovered пройден.")
@@ -386,9 +395,10 @@ type stubMessage struct {
 	Text      string `json:"text"`
 	MessageID string `json:"mid"`
 	Buttons   []struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
-		URL  string `json:"url"`
+		Type    string `json:"type"`
+		Text    string `json:"text"`
+		URL     string `json:"url"`
+		Payload string `json:"payload"`
 	} `json:"buttons"`
 }
 

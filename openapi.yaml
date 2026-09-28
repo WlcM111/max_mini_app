@@ -245,6 +245,42 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /organizations/{organizationId}/documents/draft-image:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [documents]
+      operationId: draftDocumentImage
+      summary: Черновик карточки документа по фотографии
+      description: |
+        Фотография документа передаётся ассистенту (GigaChat, ADR-032) для чтения реквизитов
+        и сразу удаляется из хранилища GigaChat; сервис изображение не сохраняет.
+        Ответ — тот же черновик, что у `.../documents/draft`. Изображение JPEG или PNG до 5 МБ.
+      x-min-role: editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [image, mime_type]
+              properties:
+                image: { type: string, maxLength: 7000000, description: 'Изображение в Base64' }
+                mime_type: { type: string, enum: [image/jpeg, image/png] }
+      responses:
+        default: { $ref: '#/components/responses/Unexpected' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentDraft' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /organizations/{organizationId}/documents:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -267,6 +303,11 @@ paths:
           in: query
           required: false
           schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: responsible
+          in: query
+          required: false
+          description: 'me — только документы, где ответственный — текущий пользователь'
+          schema: { type: string }
         - name: cursor
           in: query
           required: false
@@ -634,6 +675,11 @@ paths:
         '429': { $ref: '#/components/responses/TooManyRequests' }
   /downloads/{downloadToken}:
     parameters:
+      - name: format
+        in: query
+        required: false
+        description: 'xlsx — реестр документов (Excel) по той же ссылке вместо календаря'
+        schema: { type: string, enum: [ics, xlsx], default: ics }
       - name: downloadToken
         in: path
         required: true
@@ -877,7 +923,7 @@ components:
       required: [kind]
       description: Разобранный start_param из проверенных данных запуска
       properties:
-        kind: { type: string, enum: [none, document, organization, invite] }
+        kind: { type: string, enum: [none, document, organization, invite, renew] }
         document_id: { $ref: '#/components/schemas/Uuid' }
         organization_id: { $ref: '#/components/schemas/Uuid' }
         invite_token: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
@@ -1141,6 +1187,7 @@ components:
         number: { type: [string, 'null'], maxLength: 100 }
         issuer: { type: [string, 'null'], maxLength: 200 }
         responsible_label: { type: [string, 'null'], maxLength: 100, description: 'Должность или условное обозначение; ФИО и иные ПДн не вводить' }
+        responsible_account_id: { type: [string, 'null'], format: uuid, description: 'Ответственный участник организации; напоминания уходят лично ему' }
         notes: { type: [string, 'null'], maxLength: 2000 }
         reference_url: { type: [string, 'null'], maxLength: 1024, pattern: '^https://' }
         valid_from: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
@@ -1170,6 +1217,7 @@ components:
         number: { type: [string, 'null'], maxLength: 100 }
         issuer: { type: [string, 'null'], maxLength: 200 }
         responsible_label: { type: [string, 'null'], maxLength: 100 }
+        responsible_account_id: { type: [string, 'null'], format: uuid, description: 'Ответственный участник; ему уходят напоминания' }
         notes: { type: [string, 'null'], maxLength: 2000 }
         reference_url: { type: [string, 'null'], maxLength: 1024, pattern: '^https://' }
         valid_from: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
@@ -1203,6 +1251,7 @@ components:
         document_type_code: { type: [string, 'null'] }
         title: { type: string, maxLength: 200 }
         responsible_label: { type: [string, 'null'], maxLength: 100 }
+        responsible_account_id: { type: [string, 'null'], format: uuid, description: 'Ответственный участник; ему уходят напоминания' }
         valid_until: { oneOf: [ { $ref: '#/components/schemas/LocalDate' }, { type: 'null' } ] }
         status: { $ref: '#/components/schemas/DeadlineStatus' }
         days_left: { type: [integer, 'null'], description: 'valid_until − сегодня в днях; отрицательно для просроченных; null для бессрочных' }
@@ -1227,6 +1276,7 @@ components:
         number: { type: [string, 'null'], maxLength: 100 }
         issuer: { type: [string, 'null'], maxLength: 200 }
         responsible_label: { type: [string, 'null'], maxLength: 100 }
+        responsible_account_id: { type: [string, 'null'], format: uuid, description: 'Ответственный участник; ему уходят напоминания' }
         notes: { type: [string, 'null'], maxLength: 2000 }
         reference_url: { type: [string, 'null'], maxLength: 1024 }
         current_period: { $ref: '#/components/schemas/Period' }

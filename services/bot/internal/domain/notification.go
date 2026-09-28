@@ -47,7 +47,9 @@ type ButtonAction string
 
 const (
 	ActionOpenApp ButtonAction = "open_app"
-	ActionURL     ButtonAction = "url"
+	// ActionCallback — кнопка-обратный вызов; добавляется ботом при отправке и не хранится в очереди.
+	ActionCallback ButtonAction = "callback"
+	ActionURL      ButtonAction = "url"
 )
 
 // Button — кнопка под сообщением; каждая кнопка занимает отдельный ряд.

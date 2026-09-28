@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { Button } from '@maxhub/max-ui';
+import { Button } from '../shared/ui/Button';
+import { Icon } from '../shared/ui/Icon';
 import { track } from '../shared/lib/telemetry';
 
 interface Props {
@@ -25,15 +26,20 @@ export class ErrorBoundary extends Component<Props, State> {
   override render(): ReactNode {
     if (!this.state.failed) return this.props.children;
     return (
-      <div className="app-shell">
-        <main className="app-content">
-          <h1 className="app-header__title">Что-то пошло не так</h1>
-          <p className="card__text">Перезапустите приложение — данные сохранены на сервере.</p>
-          <Button size="large" stretched onClick={() => window.location.reload()}>
-            Перезапустить
-          </Button>
-        </main>
-      </div>
+      <main className="system">
+        <div className="system__card">
+          <span className="system__glyph system__glyph--danger" aria-hidden="true">
+            <Icon name="alert" size={34} />
+          </span>
+          <h1 className="system__title">Что-то пошло не так</h1>
+          <p className="system__text">Перезапустите приложение — данные сохранены на сервере.</p>
+          <div className="system__actions">
+            <Button size="l" stretched icon="refresh" onClick={() => window.location.reload()}>
+              Перезапустить
+            </Button>
+          </div>
+        </div>
+      </main>
     );
   }
 }
