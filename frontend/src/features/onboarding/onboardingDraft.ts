@@ -3,6 +3,12 @@ import { uuidV4 } from '../../shared/lib/uuid';
 
 const KEY = 'vovremya.onboarding';
 
+/** Свой документ, которого нет среди типовых: название задаёт пользователь, срок — на следующем шаге. */
+export interface CustomDocument {
+  id: string;
+  title: string;
+}
+
 export interface OnboardingDraft {
   organizationId: string;
   name: string;
@@ -11,6 +17,7 @@ export interface OnboardingDraft {
   timezone: string;
   featureCodes: string[];
   selectedTypes: string[];
+  customDocuments: CustomDocument[];
 }
 
 const empty = (): OnboardingDraft => ({
@@ -21,6 +28,7 @@ const empty = (): OnboardingDraft => ({
   timezone: '',
   featureCodes: [],
   selectedTypes: [],
+  customDocuments: [],
 });
 
 let draft: OnboardingDraft | null = null;
@@ -31,7 +39,8 @@ export function getDraft(): OnboardingDraft {
   const raw = readStorage('session', KEY);
   if (raw) {
     try {
-      draft = JSON.parse(raw) as OnboardingDraft;
+      // Черновик прежней версии мог не содержать своих документов.
+      draft = { ...empty(), ...(JSON.parse(raw) as Partial<OnboardingDraft>) };
       return draft;
     } catch {
       removeStorage('session', KEY);

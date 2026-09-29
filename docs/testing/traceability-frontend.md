@@ -2,7 +2,7 @@
 
 Версия 1.0.0 · 24.09.2026. Источники: `docs/requirements/requirements-registry.md`,
 `docs/handoffs/frontend-miniapp.md` §3, `docs/frontend/frontend-architecture.md`,
-`openapi.yaml` 1.1.0. Тесты: `frontend/src/**/*.test.ts(x)` (T-FE-*),
+`openapi.yaml` 1.3.0. Тесты: `frontend/src/**/*.test.ts(x)` (T-FE-*),
 `frontend/test/integration/api.int.test.ts` (T-INT-*), `frontend/e2e/*.spec.ts` (T-E2E-*).
 
 | ID | Требование | Экран / модуль | Операция API | Тест | Статус |
@@ -17,6 +17,11 @@
 | FR-20 | Чек-лист подготовки к продлению | `DocumentCardPage`, `renewalChecklist.ts` | данные шагов из `GET /documents/{id}` | unit-тесты `renewalChecklist`, T-FE-PAGE (чек-лист) | выполнено |
 | FR-21 | Быстрый ввод документа по тексту | `DocumentFormPage`, `documents/api.ts` | `POST /organizations/{id}/documents/draft` | T-FE-LLM (`assistantDraft.test.tsx`), `TestAssistantDraftDocument` | выполнено |
 | FR-22 | Подбор профиля по описанию бизнеса | `OrganizationFormPage`, `organizations/api.ts` | `POST /profile-match` | T-FE-LLM (`assistantProfile.test.tsx`), `TestAssistantMatchProfile` | выполнено |
+| FR-23 | Распознавание документа по фото | `DocumentFormPage`, `assistantNotice.ts`, `shared/lib/image.ts` | `POST /organizations/{id}/documents/draft-image` | T-FE-LLM (`assistantDraft.test.tsx`, `assistantNotice.test.ts`) | выполнено |
+| FR-24 | Импорт из Excel | `ImportPage`, `importRows.ts`, `spreadsheet.ts` | `POST /documents/batch` | T-FE-IMPORT (`importRows.test.ts`, `spreadsheet.test.ts`, `ImportPage.test.tsx`) | выполнено |
+| FR-25 | Выгрузка реестра в Excel | `RegistryExportButton` | `POST /exports/calendar`, `GET /downloads/{token}?format=xlsx` | DATA-API `registry-xlsx` | выполнено |
+| FR-27 | Подбор типовых и свои документы из раздела «Документы» | `SuggestionsPage`, `DatesPage`, `documentPick.ts`, `DocumentsPage` | `GET /suggestions`, `POST /documents/batch` | T-FE-TYPICAL (`SuggestionsPage.test.tsx`), T-FE-PAGE | выполнено |
+| NFR-09 | Выбор даты и времени в стиле приложения | `DateField`, `DatePicker`, `TimeField`, `DeadlineCalendar` | — | T-FE-DATE, T-FE-TIME, T-FE-CAL, `SettingsPage.test.tsx` | выполнено |
 | FR-08 | Добавление, в том числе пакетом | `DocumentFormPage`, `DatesPage` | `POST /documents`, `/batch` | T-FE-DUP, T-INT-06, T-INT-09 | выполнено |
 | FR-09 | Продление | `RenewPage` | `POST /renewals` | T-INT-11 | выполнено |
 | FR-10 | Участники, роли, приглашения | `MembersPage`, `InvitePage`, `InviteAcceptPage` | члены и приглашения | T-FE-PAGE, T-INT-14, T-INT-16, T-INT-17 | выполнено |

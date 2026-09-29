@@ -8,6 +8,7 @@ import { Fab } from '../../shared/ui/Fab';
 import { TextField } from '../../shared/ui/Field';
 import { Icon } from '../../shared/ui/Icon';
 import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateViews';
+import { useMediaQuery } from '../../shared/lib/useViewport';
 import { roleAllows, useRole, useSession } from '../../session/useSession';
 import { getOrganization } from '../organizations/api';
 import { listDocuments } from './api';
@@ -40,6 +41,8 @@ export function DocumentsPage() {
   const mine = searchParams.get('mine') === '1';
   const [searchInput, setSearchInput] = useState(searchParams.get('q') ?? '');
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
+  // Кнопки шапки видны от 1024 px (layout.css); на телефоне те же действия — строкой под заголовком.
+  const desktop = useMediaQuery('(min-width: 1024px)');
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(searchInput.trim()), 350);
@@ -86,23 +89,45 @@ export function DocumentsPage() {
     setSearchParams(params, { replace: true, state: location.state });
   };
 
-  const importAction = canEdit ? (
-    <Button variant="secondary" icon="upload" onClick={() => navigate(`/o/${orgId}/documents/import`)}>
-      Импорт из Excel
-    </Button>
-  ) : undefined;
+  // В пустом реестре те же действия показывает заглушка — строка не дублирует их.
+  const emptyRegistry = view === 'list' && documents.isSuccess && items.length === 0 && !query && !status && !mine;
+  const pickTypical = () => navigate(`/o/${orgId}/documents/typical`);
+  const openImport = () => navigate(`/o/${orgId}/documents/import`);
+  const headerActions =
+    canEdit && desktop ? (
+      <>
+        <Button variant="secondary" icon="sparkles" onClick={pickTypical}>
+          Подобрать типовые документы
+        </Button>
+        <Button variant="secondary" icon="upload" onClick={openImport}>
+          Импорт из Excel
+        </Button>
+      </>
+    ) : undefined;
 
-  const viewSwitch = (
-    <div className="segmented view-switch" role="group" aria-label="Вид реестра">
-      <button type="button" className="segmented__btn" aria-pressed={view === 'list'} onClick={() => setView('list')}>
-        <Icon name="list" size={18} />
-        Список
-      </button>
-      <button type="button" className="segmented__btn" aria-pressed={view === 'calendar'} onClick={() => setView('calendar')}>
-        <Icon name="calendar" size={18} />
-        Календарь
-      </button>
-    </div>
+  const headerExtra = (
+    <>
+      <div className="segmented view-switch" role="group" aria-label="Вид реестра">
+        <button type="button" className="segmented__btn" aria-pressed={view === 'list'} onClick={() => setView('list')}>
+          <Icon name="list" size={18} />
+          Список
+        </button>
+        <button type="button" className="segmented__btn" aria-pressed={view === 'calendar'} onClick={() => setView('calendar')}>
+          <Icon name="calendar" size={18} />
+          Календарь
+        </button>
+      </div>
+      {canEdit && !desktop && !emptyRegistry ? (
+        <div className="doc-actions">
+          <Button size="s" variant="neutral" icon="sparkles" onClick={pickTypical}>
+            Подобрать типовые документы
+          </Button>
+          <Button size="s" variant="neutral" icon="upload" onClick={openImport}>
+            Импорт из Excel
+          </Button>
+        </div>
+      ) : null}
+    </>
   );
 
   if (view === 'calendar') {
@@ -110,8 +135,8 @@ export function DocumentsPage() {
       <AppShell
         title="Документы"
         subtitle={organizationName}
-        headerExtra={viewSwitch}
-        headerActions={importAction}
+        headerExtra={headerExtra}
+        headerActions={headerActions}
         wide
         fab={canEdit ? <Fab icon="plus" label="Добавить документ" onClick={() => navigate(`/o/${orgId}/documents/new`)} /> : null}
       >
@@ -124,8 +149,8 @@ export function DocumentsPage() {
     <AppShell
       title="Документы"
       subtitle={organizationName}
-      headerExtra={viewSwitch}
-      headerActions={importAction}
+      headerExtra={headerExtra}
+      headerActions={headerActions}
       wide
       fab={canEdit ? <Fab icon="plus" label="Добавить документ" onClick={() => navigate(`/o/${orgId}/documents/new`)} /> : null}
     >
@@ -211,12 +236,21 @@ export function DocumentsPage() {
         ) : (
           <EmptyView
             title="Документов пока нет"
-            description={canEdit ? 'Добавьте первый документ или загрузите сразу всю таблицу из Excel.' : undefined}
+            description={
+              canEdit
+                ? 'Подберите типовые документы по профилю организации, добавьте свой через «+» или загрузите сразу всю таблицу из Excel.'
+                : undefined
+            }
             action={
               canEdit ? (
-                <Button variant="secondary" icon="upload" onClick={() => navigate(`/o/${orgId}/documents/import`)}>
-                  Импорт из Excel
-                </Button>
+                <>
+                  <Button variant="secondary" icon="sparkles" onClick={pickTypical}>
+                    Подобрать типовые документы
+                  </Button>
+                  <Button variant="neutral" icon="upload" onClick={openImport}>
+                    Импорт из Excel
+                  </Button>
+                </>
               ) : null
             }
           />

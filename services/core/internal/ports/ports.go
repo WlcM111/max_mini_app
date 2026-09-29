@@ -5,6 +5,7 @@ package ports
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"vovremya/services/core/internal/domain"
@@ -270,3 +271,8 @@ type DraftAssistant interface {
 	DraftDocument(ctx context.Context, text string, catalog AssistantCatalog) (DocumentDraft, error)
 	MatchProfile(ctx context.Context, description string, catalog AssistantCatalog) (ProfileMatch, error)
 }
+
+// ErrAssistantNoResult — ассистент ответил, но реквизитов во входных данных не нашёл:
+// модель отказалась отвечать по содержанию или ответила не по схеме. Это свойство
+// текста или фотографии, а не отказ сервиса (ADR-033).
+var ErrAssistantNoResult = errors.New("ассистент не нашёл реквизитов во входных данных")

@@ -1,4 +1,5 @@
 import { HttpResponse, http } from 'msw';
+import type { DocumentCreate } from '../../api/client';
 import * as fixtures from '../fixtures';
 
 // msw/node требует абсолютные адреса: тесты выполняются в окружении Node.
@@ -9,12 +10,17 @@ export const calls = {
   createDocument: 0,
   createSession: 0,
   draftDocument: 0,
+  draftImage: 0,
   matchProfile: 0,
+  /** Тела пакетных запросов POST /documents/batch по порядку. */
+  batches: [] as DocumentCreate[][],
   reset(): void {
     calls.createDocument = 0;
     calls.createSession = 0;
     calls.draftDocument = 0;
+    calls.draftImage = 0;
     calls.matchProfile = 0;
+    calls.batches = [];
   },
 };
 
@@ -77,9 +83,11 @@ export const handlers = [
     }
     return HttpResponse.json({ ...fixtures.document, title: body.title }, { status: 201 });
   }),
-  http.post(`${base}/organizations/:organizationId/documents/batch`, () =>
-    HttpResponse.json({ items: [fixtures.document] }, { status: 201 }),
-  ),
+  http.post(`${base}/organizations/:organizationId/documents/batch`, async ({ request }) => {
+    const body = (await request.json()) as { items: DocumentCreate[] };
+    calls.batches.push(body.items);
+    return HttpResponse.json({ items: [fixtures.document] }, { status: 201 });
+  }),
   http.get(`${base}/documents/:documentId`, () => HttpResponse.json(fixtures.document)),
   http.patch(`${base}/documents/:documentId`, () => HttpResponse.json({ ...fixtures.document, version: 2 })),
   http.delete(`${base}/documents/:documentId`, () => new HttpResponse(null, { status: 204 })),
@@ -139,6 +147,19 @@ export const handlers = [
       document_type_code: 'alcohol_retail_license',
       reminder_offsets_days: [60, 30, 7],
       confidence: 0.92,
+    });
+  }),
+  http.post(`${base}/organizations/:organizationId/documents/draft-image`, () => {
+    calls.draftImage += 1;
+    return HttpResponse.json({
+      title: 'Лицензия на алкоголь',
+      number: '78РПА0012345',
+      issuer: null,
+      valid_from: null,
+      valid_until: '2029-03-13',
+      document_type_code: null,
+      reminder_offsets_days: [],
+      confidence: 0.8,
     });
   }),
   http.post(`${base}/profile-match`, () => {

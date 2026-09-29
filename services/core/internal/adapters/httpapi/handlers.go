@@ -756,14 +756,19 @@ func (s *Server) handleDownloadCalendar(w http.ResponseWriter, r *http.Request) 
 // maxImageBodyBytes — фото до 5 МБ в Base64 плюс поля JSON.
 const maxImageBodyBytes = 7 << 20
 
-// handleDraftDocumentImage — черновик карточки по фотографии документа (FR-21).
+// handleDraftDocumentImage — черновик карточки по фотографии документа (FR-23).
 func (s *Server) handleDraftDocumentImage(w http.ResponseWriter, r *http.Request, actor app.Actor) {
 	if !s.assistantLimiter.Allow("draft:"+actor.Account.PublicID, time.Now()) {
 		s.fail(w, r, domain.ErrRateLimited)
 		return
 	}
 	raw, err := io.ReadAll(io.LimitReader(r.Body, maxImageBodyBytes+1))
-	if err != nil || len(raw) > maxImageBodyBytes {
+	if err != nil {
+		// Обрыв соединения или истёкший срок чтения — это не «слишком большой файл».
+		s.fail(w, r, domain.ValidationFor("image", domain.CodeInvalidFormat, "фотография получена не полностью — повторите отправку"))
+		return
+	}
+	if len(raw) > maxImageBodyBytes {
 		s.fail(w, r, domain.ValidationFor("image", domain.CodeTooLong, "фотография больше 5 МБ"))
 		return
 	}

@@ -113,7 +113,7 @@ flowchart TB
 |---|---|
 | Назначение | Единственный держатель токена бота; приём событий MAX, учёт состояния диалогов, очередь исходящих сообщений с ограничением скорости, подписка webhook, профиль бота |
 | Входящие интерфейсы | gRPC `:9090` — `vovremya.bot.v1.MessagingService` и `grpc.health.v1.Health`; HTTP `:8080` — `POST /max/webhook`; admin `:8081` — `/healthz`, `/readyz`, `/metrics`, в режиме stub — `GET /debug/stub/messages`; CLI: `serve`, `migrate up`, `healthcheck` |
-| Исходящие | PostgreSQL (схема `bot`, роль `bot_app`); MAX Bot API `https://platform-api2.max.ru` (`GET /me`, `GET /subscriptions`, `POST /subscriptions`, `POST /messages`, `PATCH /me/commands`) |
+| Исходящие | PostgreSQL (схема `bot`, роль `bot_app`); MAX Bot API `https://botapi.max.ru` (`GET /me`, `GET /subscriptions`, `POST /subscriptions`, `POST /messages`, `PATCH /me/commands`) |
 | Данные | `bot.inbound_updates`, `bot.recipients`, `bot.outbound_messages`, `bot.outbound_buttons` |
 | Фоновые задачи | DeliveryWorker (4 горутины, опрос каждые 500 мс, пакет 50, lease 60 с); LeaseReaper (каждые 30 с); SubscriptionKeeper (каждые 10 мин, live); ProfileService (до успеха каждые 30 с, затем каждые 6 ч); RetentionJob (каждый час: `inbound_updates` старше 7 сут, финальные сообщения старше 30 сут) |
 | Лимиты | глобально 20 вызовов Bot API в секунду; на получателя — одно сообщение в 600 мс; очередь: при > 50 000 строк в статусах `queued`/`retry_wait` `EnqueueNotification` отвечает `RESOURCE_EXHAUSTED` |

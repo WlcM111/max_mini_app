@@ -4,11 +4,19 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 	"unicode/utf8"
 
 	"vovremya/services/core/internal/domain"
 	"vovremya/services/core/internal/ports"
 )
+
+// imageTimeoutFactor — во сколько раз распознавание фотографии дольше разбора текста:
+// файл загружается в хранилище GigaChat, затем модель читает изображение.
+const imageTimeoutFactor = 3
+
+// ImageTimeout — предел ожидания распознавания фотографии (ADR-033).
+func ImageTimeout(textTimeout time.Duration) time.Duration { return imageTimeoutFactor * textTimeout }
 
 // AssistantEnabled сообщает, подключён ли языковой ассистент (FR-21, FR-22).
 func (a *App) AssistantEnabled() bool { return a.Assistant != nil }
@@ -36,7 +44,9 @@ func (a *App) assistantCatalog() ports.AssistantCatalog {
 
 // DraftDocument распознаёт реквизиты документа в свободном тексте (FR-21).
 // Ничего не сохраняет: результат подставляется в форму, которую подтверждает
-// пользователь. При недоступности ассистента возвращает ErrDependencyUnavailable.
+// пользователь. Даты с явными маркерами («до», «от», «выдана») дополнительно
+// извлекаются из текста без модели. Сбой ассистента — ErrDependencyUnavailable,
+// отсутствие реквизитов в тексте — ErrDocumentNotRecognized.
 func (a *App) DraftDocument(ctx context.Context, actor Actor, orgPublicID, text string) (domain.AssistantDraft, error) {
 	if _, _, err := a.authorize(ctx, actor, orgPublicID, domain.RoleEditor); err != nil {
 		return domain.AssistantDraft{}, err
@@ -51,12 +61,19 @@ func (a *App) DraftDocument(ctx context.Context, actor Actor, orgPublicID, text 
 	callCtx, cancel := context.WithTimeout(ctx, a.Settings.AssistantTimeout)
 	defer cancel()
 	raw, err := a.Assistant.DraftDocument(callCtx, clean, a.assistantCatalog())
-	if err != nil {
+	if err != nil && !errors.Is(err, ports.ErrAssistantNoResult) {
 		a.assistantFailed("draft_document", clean, err)
 		return domain.AssistantDraft{}, domain.ErrDependencyUnavailable
 	}
+	// При ErrAssistantNoResult черновик модели пуст: остаются даты с маркерами из текста.
+	now := a.Clock.Now()
 	draft := domain.SanitizeAssistantDraft(a.CatalogSnapshot(), raw.Title, raw.Number, raw.Issuer,
-		raw.ValidFrom, raw.ValidUntil, raw.DocumentTypeCode, raw.Confidence, a.Clock.Now())
+		raw.ValidFrom, raw.ValidUntil, raw.DocumentTypeCode, raw.Confidence, now)
+	draft = domain.MergeTextDates(draft, domain.ExtractTextDates(clean, now))
+	if draft.Empty() {
+		a.assistantNoResult("draft_document", clean, err)
+		return domain.AssistantDraft{}, domain.ErrDocumentNotRecognized
+	}
 	a.Metrics.Assistant.WithLabelValues("draft_document", "ok").Inc()
 	return draft, nil
 }
@@ -69,7 +86,9 @@ type ImageDrafter interface {
 // MaxDraftImageBytes — предел размера фотографии документа.
 const MaxDraftImageBytes = 5 << 20
 
-// DraftDocumentFromImage распознаёт реквизиты по фотографии документа; изображение не сохраняется.
+// DraftDocumentFromImage распознаёт реквизиты по фотографии документа (FR-23); изображение
+// не сохраняется. Если на фото нет реквизитов или модель отказалась его читать —
+// ErrDocumentNotRecognized, при сбое сервиса — ErrDependencyUnavailable.
 func (a *App) DraftDocumentFromImage(ctx context.Context, actor Actor, orgPublicID string, image []byte,
 	mimeType string) (domain.AssistantDraft, error) {
 	if _, _, err := a.authorize(ctx, actor, orgPublicID, domain.RoleEditor); err != nil {
@@ -90,21 +109,30 @@ func (a *App) DraftDocumentFromImage(ctx context.Context, actor Actor, orgPublic
 	if a.Assistant == nil || !ok {
 		return domain.AssistantDraft{}, domain.ErrDependencyUnavailable
 	}
-	callCtx, cancel := context.WithTimeout(ctx, 3*a.Settings.AssistantTimeout)
+	callCtx, cancel := context.WithTimeout(ctx, ImageTimeout(a.Settings.AssistantTimeout))
 	defer cancel()
 	raw, err := drafter.DraftDocumentFromImage(callCtx, image, mimeType, a.assistantCatalog())
 	if err != nil {
+		if errors.Is(err, ports.ErrAssistantNoResult) {
+			a.assistantNoResult("draft_document_image", "", err)
+			return domain.AssistantDraft{}, domain.ErrDocumentNotRecognized
+		}
 		a.assistantFailed("draft_document_image", "", err)
 		return domain.AssistantDraft{}, domain.ErrDependencyUnavailable
 	}
 	draft := domain.SanitizeAssistantDraft(a.CatalogSnapshot(), raw.Title, raw.Number, raw.Issuer,
 		raw.ValidFrom, raw.ValidUntil, raw.DocumentTypeCode, raw.Confidence, a.Clock.Now())
+	if draft.Empty() {
+		a.assistantNoResult("draft_document_image", "", nil)
+		return domain.AssistantDraft{}, domain.ErrDocumentNotRecognized
+	}
 	a.Metrics.Assistant.WithLabelValues("draft_document_image", "ok").Inc()
 	return draft, nil
 }
 
 // MatchProfile сопоставляет свободное описание бизнеса с кодами справочника (FR-22).
-// Организация ещё не создана, поэтому нужна только действующая сессия.
+// Организация ещё не создана, поэтому нужна только действующая сессия. Если модель
+// не подобрала коды, возвращается пустой профиль: форма заполняется вручную.
 func (a *App) MatchProfile(ctx context.Context, _ Actor, description string) (domain.AssistantProfile, error) {
 	clean, err := domain.ValidateAssistantText("description", description, a.Settings.AssistantMaxInputChars)
 	if err != nil {
@@ -116,12 +144,16 @@ func (a *App) MatchProfile(ctx context.Context, _ Actor, description string) (do
 	callCtx, cancel := context.WithTimeout(ctx, a.Settings.AssistantTimeout)
 	defer cancel()
 	raw, err := a.Assistant.MatchProfile(callCtx, clean, a.assistantCatalog())
-	if err != nil {
+	if err != nil && !errors.Is(err, ports.ErrAssistantNoResult) {
 		a.assistantFailed("match_profile", clean, err)
 		return domain.AssistantProfile{}, domain.ErrDependencyUnavailable
 	}
 	profile := domain.SanitizeAssistantProfile(a.CatalogSnapshot(), raw.BusinessCategoryCode,
 		raw.FeatureCodes, raw.Confidence)
+	if err != nil {
+		a.assistantNoResult("match_profile", clean, err)
+		return profile, nil
+	}
 	a.Metrics.Assistant.WithLabelValues("match_profile", "ok").Inc()
 	return profile, nil
 }
@@ -140,4 +172,15 @@ func (a *App) assistantFailed(operation, text string, err error) {
 		slog.Int("input_chars", utf8.RuneCountInString(text)),
 		slog.String("result", result),
 		slog.Any("error", err))
+}
+
+// assistantNoResult учитывает ответ без реквизитов: входные данные не подошли,
+// сервис исправен. Содержимое текста в журнал не пишется.
+func (a *App) assistantNoResult(operation, text string, cause error) {
+	a.Metrics.Assistant.WithLabelValues(operation, "no_result").Inc()
+	attrs := []any{slog.String("operation", operation), slog.Int("input_chars", utf8.RuneCountInString(text))}
+	if cause != nil {
+		attrs = append(attrs, slog.Any("reason", cause))
+	}
+	a.Log.Info("ассистент не нашёл реквизитов", attrs...)
 }

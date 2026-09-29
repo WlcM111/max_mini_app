@@ -11,7 +11,7 @@
 |---|---|---|---|
 | K1. Запуск мини-приложения | Клиент MAX → frontend → core | клиент → сервер | MAX Bridge `window.WebApp.initData` → `POST /api/v1/sessions` → проверка подписи в core (F-09…F-14) |
 | K2. События бота | MAX → edge → bot | MAX → сервер | Webhook `POST https://<домен>/max/webhook` (F-42…F-48) |
-| K3. Сообщения бота | bot → MAX Bot API | сервер → MAX | `POST https://platform-api2.max.ru/messages?user_id=…` (F-49…F-51) |
+| K3. Сообщения бота | bot → MAX Bot API | сервер → MAX | `POST https://botapi.max.ru/messages?user_id=…` (F-49…F-51) |
 
 Токен бота хранит только сервис `bot`. Сервис `core` получает производный ключ `hex(HMAC-SHA256("WebAppData", BOT_TOKEN))`: им можно проверить подпись данных запуска, но нельзя вызвать Bot API (ADR-007). Frontend не получает никаких секретов.
 
@@ -132,7 +132,7 @@ Payload диплинка ограничен `^[A-Za-z0-9_-]{0,512}$` (F-05).
 Запрос для строки `bot.outbound_messages`:
 
 ```http
-POST https://platform-api2.max.ru/messages?user_id=<recipient_max_user_id>
+POST https://botapi.max.ru/messages?user_id=<recipient_max_user_id>
 Authorization: <BOT_MAX_TOKEN>
 Content-Type: application/json
 
@@ -185,7 +185,7 @@ Content-Type: application/json
 | Направление | Требование | Решение |
 |---|---|---|
 | MAX → наш webhook | доверенный УЦ или Минцифры, полная цепочка, порт 443 (F-44) | Caddy получает сертификат ACME (Let's Encrypt) для `EDGE_SITE_ADDRESS` |
-| bot → `platform-api2.max.ru` | добавить сертификат Минцифры в доверенные (F-40) | пул доверия = системные корни Alpine + `deploy/ca/russian_trusted_root_ca.pem` + `russian_trusted_sub_ca.pem` (файл `BOT_MAX_EXTRA_CA_FILE`) |
+| bot → `botapi.max.ru` | добавить сертификат Минцифры в доверенные (F-40) | пул доверия = системные корни Alpine + `deploy/ca/russian_trusted_root_ca.pem` + `russian_trusted_sub_ca.pem` (файл `BOT_MAX_EXTRA_CA_FILE`) |
 | клиент MAX → мини-приложение | https (F-03) | тот же сертификат Caddy |
 
 Файлы Минцифры скачиваются в задаче INF-02 с портала https://www.gosuslugi.ru/crt, их SHA-256-отпечатки сверяются с опубликованными на портале и записываются в [runbook](../operations/compose-and-runbook.md).

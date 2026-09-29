@@ -239,3 +239,118 @@ func TestRequiresAuthKey(t *testing.T) {
 		t.Fatal("без ключа авторизации клиент создаваться не должен")
 	}
 }
+
+func TestBlacklistIsNoResult(t *testing.T) {
+	fake := gigachattest.New(t)
+	fake.SetContent("Не люблю менять тему разговора, но вот сейчас тот самый случай.")
+	fake.SetFinishReason("blacklist")
+	client := newClient(t, fake)
+
+	_, err := client.DraftDocument(context.Background(), "текст", testCatalog())
+	if !errors.Is(err, ports.ErrAssistantNoResult) {
+		t.Fatalf("ответ ограничителя GigaChat — отсутствие результата, а не сбой: %v", err)
+	}
+	if fake.ChatCalls() != 1 {
+		t.Fatalf("повтор при ограничителе бесполезен, обращений: %d", fake.ChatCalls())
+	}
+}
+
+func TestNonJSONContentIsNoResult(t *testing.T) {
+	fake := gigachattest.New(t)
+	fake.SetContent("В тексте нет реквизитов документа.")
+	client := newClient(t, fake)
+
+	_, err := client.DraftDocument(context.Background(), "привет", testCatalog())
+	if !errors.Is(err, ports.ErrAssistantNoResult) || !errors.Is(err, gigachat.ErrBadResponse) {
+		t.Fatalf("текст вместо JSON — отсутствие результата: %v", err)
+	}
+}
+
+func TestServerErrorIsNotNoResult(t *testing.T) {
+	fake := gigachattest.New(t)
+	fake.SetStatus(http.StatusServiceUnavailable)
+	client := newClient(t, fake)
+
+	_, err := client.DraftDocument(context.Background(), "текст", testCatalog())
+	if err == nil || errors.Is(err, ports.ErrAssistantNoResult) {
+		t.Fatalf("отказ сервиса не должен выдаваться за отсутствие реквизитов: %v", err)
+	}
+}
+
+func TestPromptsNameResponseKeys(t *testing.T) {
+	fake := gigachattest.New(t)
+	fake.SetContent(`{"title":"А","confidence":1}`)
+	client := newClient(t, fake)
+
+	if _, err := client.DraftDocument(context.Background(), "текст", testCatalog()); err != nil {
+		t.Fatalf("разбор документа: %v", err)
+	}
+	messages, _ := fake.LastRequest()["messages"].([]any)
+	system, _ := messages[0].(map[string]any)
+	prompt, _ := system["content"].(string)
+	for _, key := range []string{"title", "number", "issuer", "valid_from", "valid_until", "document_type_code", "confidence"} {
+		if !strings.Contains(prompt, key) {
+			t.Fatalf("ключ %q должен быть назван в инструкции модели: %q", key, prompt)
+		}
+	}
+}
+
+// jpegStub — минимальные байты с сигнатурой JPEG: адаптер не декодирует изображение.
+var jpegStub = []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00, 0xFF, 0xD9}
+
+func TestDraftDocumentFromImage(t *testing.T) {
+	fake := gigachattest.New(t)
+	fake.SetContent(`{"title":"Лицензия","number":"78РПА1","issuer":"","valid_from":"2024-03-14","valid_until":"2029-03-13","document_type_code":"alcohol_license","confidence":0.8}`)
+	client := newClient(t, fake)
+
+	draft, err := client.DraftDocumentFromImage(context.Background(), jpegStub, "image/jpeg", testCatalog())
+	if err != nil {
+		t.Fatalf("распознавание фото: %v", err)
+	}
+	if draft.Title != "Лицензия" || draft.ValidUntil != "2029-03-13" || draft.DocumentTypeCode != "alcohol_license" {
+		t.Fatalf("ответ разобран неверно: %+v", draft)
+	}
+	if fake.Uploads() != 1 {
+		t.Fatalf("фото должно загружаться один раз, загрузок: %d", fake.Uploads())
+	}
+	if mime, purpose := fake.LastUpload(); mime != "image/jpeg" || purpose != "general" {
+		t.Fatalf("файл загружен с неверными параметрами: %q, %q", mime, purpose)
+	}
+	messages, _ := fake.LastRequest()["messages"].([]any)
+	user, _ := messages[1].(map[string]any)
+	attachments, _ := user["attachments"].([]any)
+	if len(attachments) != 1 || attachments[0] != "file-1" {
+		t.Fatalf("файл должен передаваться через attachments: %v", user["attachments"])
+	}
+	if deleted := fake.Deleted(); len(deleted) != 1 || deleted[0] != "file-1" {
+		t.Fatalf("файл должен удаляться после распознавания: %v", deleted)
+	}
+}
+
+func TestDraftDocumentFromImageDeletesFileOnFailure(t *testing.T) {
+	fake := gigachattest.New(t)
+	fake.SetStatus(http.StatusInternalServerError)
+	client := newClient(t, fake)
+
+	if _, err := client.DraftDocumentFromImage(context.Background(), jpegStub, "image/jpeg", testCatalog()); err == nil {
+		t.Fatal("ошибка распознавания должна возвращаться вызывающему")
+	}
+	if deleted := fake.Deleted(); len(deleted) != 1 {
+		t.Fatalf("файл удаляется и при ошибке распознавания: %v", deleted)
+	}
+}
+
+func TestDraftDocumentFromImageBlacklist(t *testing.T) {
+	fake := gigachattest.New(t)
+	fake.SetContent("Что-то в вашем вопросе меня смущает.")
+	fake.SetFinishReason("blacklist")
+	client := newClient(t, fake)
+
+	_, err := client.DraftDocumentFromImage(context.Background(), jpegStub, "image/jpeg", testCatalog())
+	if !errors.Is(err, ports.ErrAssistantNoResult) {
+		t.Fatalf("отказ модели читать фото — отсутствие результата: %v", err)
+	}
+	if deleted := fake.Deleted(); len(deleted) != 1 {
+		t.Fatalf("файл удаляется и при отказе модели: %v", deleted)
+	}
+}

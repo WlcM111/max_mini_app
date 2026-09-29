@@ -387,7 +387,7 @@ func NewHarness(t *testing.T, opts ...func(*config.Config)) *Harness {
 		Clock: clock, Server: server, Config: cfg}
 }
 
-// FakeAssistant — управляемый двойник языкового ассистента (ADR-032).
+// FakeAssistant — управляемый двойник языкового ассистента (ADR-032, ADR-033).
 // Обращений к GigaChat в тестах не выполняется.
 type FakeAssistant struct {
 	mu           sync.Mutex
@@ -396,7 +396,9 @@ type FakeAssistant struct {
 	err          error
 	draftCalls   int
 	profileCalls int
+	imageCalls   int
 	lastText     string
+	lastImage    []byte
 	lastCatalog  ports.AssistantCatalog
 }
 
@@ -434,6 +436,33 @@ func (f *FakeAssistant) DraftDocument(_ context.Context, text string, catalog po
 		return ports.DocumentDraft{}, f.err
 	}
 	return f.draft, nil
+}
+
+// DraftDocumentFromImage возвращает заданный черновик для фотографии.
+func (f *FakeAssistant) DraftDocumentFromImage(_ context.Context, image []byte, _ string,
+	catalog ports.AssistantCatalog) (ports.DocumentDraft, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.imageCalls++
+	f.lastImage, f.lastCatalog = append([]byte(nil), image...), catalog
+	if f.err != nil {
+		return ports.DocumentDraft{}, f.err
+	}
+	return f.draft, nil
+}
+
+// LastImage возвращает байты последней переданной фотографии.
+func (f *FakeAssistant) LastImage() []byte {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lastImage
+}
+
+// ImageCalls возвращает число обращений к распознаванию фото.
+func (f *FakeAssistant) ImageCalls() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.imageCalls
 }
 
 // MatchProfile возвращает заданный профиль.

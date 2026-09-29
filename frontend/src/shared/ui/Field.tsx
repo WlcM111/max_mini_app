@@ -50,6 +50,8 @@ interface TextFieldProps extends BaseProps {
   raised?: boolean;
   trailing?: ReactNode;
   disabled?: boolean;
+  /** Действие по Enter, например добавление значения в список. */
+  onEnter?: () => void;
 }
 
 export function TextField({
@@ -72,6 +74,7 @@ export function TextField({
   raised,
   trailing,
   disabled,
+  onEnter,
 }: TextFieldProps) {
   const autoId = useId();
   const id = idProp ?? autoId;
@@ -96,6 +99,16 @@ export function TextField({
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy(id, error, hint)}
           onChange={(event) => onChange(event.target.value)}
+          onKeyDown={
+            onEnter
+              ? (event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    onEnter();
+                  }
+                }
+              : undefined
+          }
         />
         {clearable && value !== '' ? (
           <button type="button" className="control__action" aria-label="Очистить поле" onClick={() => onChange('')}>

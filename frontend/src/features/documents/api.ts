@@ -82,22 +82,30 @@ export const deleteDocument = (documentId: string): Promise<void> =>
  * поля подставляются в форму, которую подтверждает пользователь.
  */
 /** Черновик по фотографии: изображение уходит в GigaChat и там сразу удаляется. */
+// Ожидание дольше серверного бюджета ассистента (ADR-033): текст — до 13 с, фото — до 29 с.
+const DRAFT_TIMEOUT_MS = 20_000;
+const DRAFT_IMAGE_TIMEOUT_MS = 60_000;
+
 export const draftDocumentFromImage = (organizationId: string, image: string, mimeType: 'image/jpeg' | 'image/png'): Promise<DocumentDraft> =>
-  run(({ headers, signal }) =>
-    client.POST('/organizations/{organizationId}/documents/draft-image', {
-      params: { path: { organizationId } },
-      body: { image, mime_type: mimeType },
-      headers,
-      signal,
-    }),
+  run(
+    ({ headers, signal }) =>
+      client.POST('/organizations/{organizationId}/documents/draft-image', {
+        params: { path: { organizationId } },
+        body: { image, mime_type: mimeType },
+        headers,
+        signal,
+      }),
+    { timeoutMs: DRAFT_IMAGE_TIMEOUT_MS },
   );
 
 export const draftDocument = (organizationId: string, text: string): Promise<DocumentDraft> =>
-  run(({ headers, signal }) =>
-    client.POST('/organizations/{organizationId}/documents/draft', {
-      params: { path: { organizationId } },
-      body: { text },
-      headers,
-      signal,
-    }),
+  run(
+    ({ headers, signal }) =>
+      client.POST('/organizations/{organizationId}/documents/draft', {
+        params: { path: { organizationId } },
+        body: { text },
+        headers,
+        signal,
+      }),
+    { timeoutMs: DRAFT_TIMEOUT_MS },
   );

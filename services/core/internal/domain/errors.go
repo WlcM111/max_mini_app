@@ -26,6 +26,7 @@ var (
 	ErrLinkGone              = errors.New("ссылка истекла или исчерпана")
 	ErrRateLimited           = errors.New("превышен предел частоты запросов")
 	ErrDependencyUnavailable = errors.New("зависимый сервис недоступен")
+	ErrDocumentNotRecognized = errors.New("реквизиты документа не распознаны")
 )
 
 // Коды ошибок полей (OpenAPI FieldError.code).

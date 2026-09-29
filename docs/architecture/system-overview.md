@@ -34,7 +34,7 @@ flowchart TB
     bot["bot: Go, webhook, очередь доставки, лимиты MAX"]
     pg[("PostgreSQL 18: схемы core и bot")]
   end
-  maxapi["MAX Bot API: platform-api2.max.ru"]
+  maxapi["MAX Bot API: botapi.max.ru"]
   fe -->|"HTTPS JSON /api/v1, Bearer"| edge
   edge -->|"HTTP /api/*"| core
   edge -->|"HTTP POST /max/webhook"| bot

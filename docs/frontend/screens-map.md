@@ -11,17 +11,20 @@
 | `/welcome` | `WelcomePage` | — | «Продолжить» | — | статичный |
 | `/onboarding/organization` | `OrganizationFormPage` | `GET /catalog`, `POST /profile-match` | черновик, подбор профиля по описанию (FR-22) | — | загрузка, ошибка, ошибки полей, подбор не дал результата, ассистент выключен |
 | `/onboarding/features` | `FeaturesPage` | `GET /catalog` | `POST /organizations` | — | загрузка, ошибка, повтор при `CONFLICT_ID_REUSED` |
-| `/onboarding/suggestions` | `SuggestionsPage` | `GET /suggestions` | выбор типов | owner | загрузка, пусто, ошибка |
-| `/onboarding/dates` | `DatesPage` | `GET /catalog` | `POST /documents/batch` | owner | загрузка, ошибка, проверка дат |
+| `/onboarding/suggestions` | `SuggestionsPage` | `GET /suggestions` | выбор типов, свои документы по названию (FR-27) | owner | загрузка, пусто, ошибка, повтор названия |
+| `/onboarding/dates` | `DatesPage` | `GET /catalog` | `POST /documents/batch` пакетами по 30, срок — календарь приложения | owner | загрузка, ошибка, проверка дат |
 | `/o/:orgId` | `DashboardPage` | `GET /organizations/{id}`, `GET /documents?limit=5`, `me` | переходы | viewer | загрузка, пусто, ошибка, баннер канала |
-| `/o/:orgId/documents` | `DocumentsPage` | `GET /documents` (курсор) | фильтр, поиск, подгрузка | viewer | загрузка, пусто (фильтр/поиск), ошибка |
-| `/o/:orgId/documents/new` | `DocumentFormPage` | `GET /catalog`, `POST /documents/draft` | `POST /documents`, быстрый ввод по тексту (FR-21) | editor | отправка, ошибки полей, QR, распознавание, ассистент недоступен |
+| `/o/:orgId/documents` | `DocumentsPage` | `GET /documents` (курсор) | фильтр, поиск, подгрузка, календарь сроков; «Подобрать типовые документы» и «Импорт из Excel» (editor) | viewer | загрузка, пусто (фильтр/поиск), ошибка |
+| `/o/:orgId/documents/typical` | `SuggestionsPage` | `GET /suggestions` | типовые и свои документы (FR-27) | editor | загрузка, пусто, ошибка |
+| `/o/:orgId/documents/typical/dates` | `DatesPage` | `GET /catalog` | `POST /documents/batch`, возврат в раздел | editor | загрузка, ошибка, проверка дат |
+| `/o/:orgId/documents/import` | `ImportPage` | файл `.xlsx`/`.csv` на устройстве | `POST /documents/batch` пакетами по 30 (FR-24) | editor | чтение файла, ошибки строк, прогресс, повтор |
+| `/o/:orgId/documents/new` | `DocumentFormPage` | `GET /catalog`, `POST /documents/draft`, `POST /documents/draft-image` | `POST /documents`, быстрый ввод по тексту (FR-21) и фото (FR-23) | editor | отправка, ошибки полей, QR, распознавание, документ не распознан (422), ассистент недоступен |
 | `/d/:docId` | `DocumentCardPage` | `GET /documents/{id}`, `GET /organizations/{id}` | «Продлить», «Изменить», «Удалить», отметки чек-листа продления | viewer (изменение документа — editor, чек-лист доступен всем) | загрузка, 404, подтверждение удаления, прогресс чек-листа |
 | `/d/:docId/edit` | `DocumentFormPage` | `GET /documents/{id}` | `PATCH /documents/{id}` | editor | конфликт версии, ошибки полей |
 | `/d/:docId/renew` | `RenewPage` | `GET /documents/{id}` | `POST /renewals` | editor | загрузка, ошибка дат |
 | `/o/:orgId/members` | `MembersPage` | `GET /members`, `GET /invites` | смена роли, исключение, выход, отзыв | viewer | загрузка, пусто, ошибка, подтверждение |
 | `/o/:orgId/invite` | `InvitePage` | — | `POST /invites` | owner | создание, шеринг, копирование |
-| `/o/:orgId/settings` | `SettingsPage` | `GET /notification-settings`, `GET /organizations/{id}`, `me` | `PUT` настроек, экспорт, удаление, выход | viewer | загрузка, ошибка, подтверждение |
+| `/o/:orgId/settings` | `SettingsPage` | `GET /notification-settings`, `GET /organizations/{id}`, `me` | `PUT` настроек (время — сетка в шторке), экспорт `.ics` и `.xlsx`, импорт, удаление, выход | viewer | загрузка, ошибка, подтверждение |
 | `/o/:orgId/settings/profile` | `OrganizationSettingsPage` | `GET /organizations/{id}`, `GET /catalog` | `PATCH /organizations/{id}` | editor | загрузка, конфликт версии |
 | `/account` | `AccountPage` | `me` | `DELETE /sessions/current`, `DELETE /me` | — | подтверждение, ошибка |
 | `/invite` | `InviteAcceptPage` | `POST /invites/preview` | `POST /invites/accept` | — | загрузка, недействительно, принято |
@@ -40,6 +43,8 @@ bootstrap ──┬─ нет initData ─────────────�
             │                                        ─► Suggestions ─► Dates ─► Dashboard
             └─ есть организации ─────────► Dashboard
 Dashboard ─► Documents ─► DocumentCard ─► Edit | Renew
+Dashboard | Documents ─► Typical ─► TypicalDates ─► (назад к исходному экрану)
+Documents ─► Import
 Dashboard ─► Members ─► Invite
 Dashboard ─► Settings ─► OrganizationProfile | Account
 ```

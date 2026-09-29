@@ -18,7 +18,7 @@
 | Диплинк | Ссылка `https://max.ru/<bot>?startapp=<payload>`, открывающая мини-приложение с параметром | `StartTarget`, кнопки бота |
 | start_param / payload | Параметр диплинка, до 512 символов `[A-Za-z0-9_-]` | грамматика `doc_`, `org_`, `inv_` |
 | Webhook | HTTPS-запросы MAX с событиями бота | `POST /max/webhook` |
-| Bot API | HTTP API MAX для ботов на `platform-api2.max.ru` | `bot/internal/adapters/maxapi` |
+| Bot API | HTTP API MAX для ботов на `botapi.max.ru` | `bot/internal/adapters/maxapi` |
 | Организация | Бизнес пользователя, для которого ведутся документы | `core.organizations` |
 | Участник | Пользователь с ролью в организации | `core.memberships` |
 | Роль | `owner` (владелец, один), `editor` (редактор), `viewer` (наблюдатель) | `Role` |

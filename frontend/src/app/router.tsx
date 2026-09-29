@@ -200,6 +200,8 @@ export function createAppRouter(initialPath: string, inviteToken: string | null)
           { path: 'o/:orgId', element: <DashboardPage /> },
           { path: 'o/:orgId/documents', element: <DocumentsPage /> },
           { path: 'o/:orgId/documents/import', element: <Lazy><ImportPage /></Lazy> },
+          { path: 'o/:orgId/documents/typical', element: <Lazy><SuggestionsPage /></Lazy> },
+          { path: 'o/:orgId/documents/typical/dates', element: <Lazy><DatesPage /></Lazy> },
           { path: 'o/:orgId/documents/new', element: <Lazy><DocumentFormPage mode="create" /></Lazy> },
           { path: 'o/:orgId/members', element: <Lazy><MembersPage /></Lazy> },
           { path: 'o/:orgId/invite', element: <Lazy><InvitePage /></Lazy> },

@@ -32,7 +32,11 @@ grep -q "COPY deploy/ca /ca" services/core/Dockerfile && ok "core: бандл Н
 grep -q "CORE_GIGACHAT_AUTH_KEY" compose.yaml && ok "compose передаёт ключ GigaChat" || bad "в compose нет CORE_GIGACHAT_AUTH_KEY"
 grep -q "CORE_GIGACHAT_AUTH_KEY" .env.example && ok ".env.example описывает ключ GigaChat" || bad "в .env.example нет CORE_GIGACHAT_AUTH_KEY"
 [ -x scripts/setup_gigachat_env.sh ] && ok "scripts/setup_gigachat_env.sh исполняемый" || bad "chmod +x scripts/setup_gigachat_env.sh"
-grep -q "version: 1.2.0" openapi.yaml && ok "openapi 1.2.0 с операциями ассистента" || bad "openapi не обновлён до 1.2.0"
+ver=$(awk '/^info:/{f=1;next} f&&/^  version:/{print $2;exit}' openapi.yaml)
+for op in draftDocument draftDocumentImage matchProfile; do
+  grep -q "operationId: $op" openapi.yaml || bad "openapi: нет операции $op"
+done
+[ -n "$ver" ] && ok "openapi $ver с операциями ассистента" || bad "openapi: не найдена версия контракта"
 git ls-files | grep -qE "^\.env$" && bad ".env в репозитории" || ok "ключ GigaChat вне репозитория"
 
 echo "== Зависимости Go =="

@@ -15,7 +15,9 @@ test.describe('Документы', () => {
 
     await page.getByRole('button', { name: 'Добавить документ' }).click();
     await page.getByLabel('Название').fill('Лицензия E2E');
-    await page.getByLabel('Действует до').fill('2027-01-31');
+    await page.getByLabel('Действует до').click();
+    await page.getByLabel('Дата вручную').fill('31.01.2027');
+    await page.getByLabel('Дата вручную').press('Enter');
     await page.getByRole('button', { name: 'Сохранить' }).click();
 
     await expect(page.getByRole('heading', { name: 'Лицензия E2E' })).toBeVisible();
@@ -32,7 +34,7 @@ test.describe('Документы', () => {
   test('продлевает документ и сохраняет историю периодов', async ({ page }) => {
     await page.goto('/?mockUser=1001');
     await page.getByRole('button', { name: 'Все документы' }).click();
-    await page.locator('.list-item').first().click();
+    await page.locator('.doc-row').first().click();
     await page.getByRole('button', { name: 'Продлить' }).click();
     await page.getByRole('button', { name: 'Сохранить новый срок' }).click();
     await expect(page.getByText('История периодов')).toBeVisible();

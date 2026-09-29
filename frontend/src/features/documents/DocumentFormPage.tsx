@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { queryKeys } from '../../api/queryKeys';
-import { ApiError, messageForError } from '../../api/errors';
+import { ApiError, assistantErrorMessage, messageForError } from '../../api/errors';
 import { AppShell } from '../../shared/ui/AppShell';
 import { Button } from '../../shared/ui/Button';
 import { DateField } from '../../shared/ui/DateField';
@@ -24,6 +24,7 @@ import type { DocumentDraft } from '../../api/client';
 import { prepareImage } from '../../shared/lib/image';
 import { cx } from '../../shared/lib/cx';
 import { createDocument, draftDocument, draftDocumentFromImage, getDocument, updateDocument } from './api';
+import { draftNotice, type AssistNotice } from './assistantNotice';
 import { listMembers } from '../members/api';
 import {
   emptyDocumentForm,
@@ -59,7 +60,7 @@ export function DocumentFormPage({ mode }: Props) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [focusError, setFocusError] = useState(0);
   const [canScan, setCanScan] = useState(false);
-  const [assistNotice, setAssistNotice] = useState<string | null>(null);
+  const [assistNotice, setAssistNotice] = useState<AssistNotice | null>(null);
   const [assistantText, setAssistantText] = useState('');
   const [flash, setFlash] = useState<FlashKey[]>([]);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -118,8 +119,8 @@ export function DocumentFormPage({ mode }: Props) {
   const update = <K extends keyof DocumentFormState>(key: K, value: DocumentFormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  // Быстрый ввод: ассистент распознаёт реквизиты по тексту или фото и заполняет форму (FR-21).
-  // Ничего не сохраняет — пользователь проверяет поля и нажимает «Сохранить».
+  // Быстрый ввод: ассистент распознаёт реквизиты по тексту (FR-21) или фото (FR-23) и заполняет
+  // форму. Ничего не сохраняет — пользователь проверяет поля и нажимает «Сохранить».
   const applyDraft = (draft: DocumentDraft, source: 'text' | 'photo') => {
     const filled: FlashKey[] = [];
     setForm((prev) => {
@@ -141,17 +142,14 @@ export function DocumentFormPage({ mode }: Props) {
     });
     setFlash(filled);
     setErrors({});
-    setAssistNotice(
-      draft.confidence >= 0.5
-        ? `Поля заполнены по ${source === 'text' ? 'тексту' : 'фото'} — проверьте их перед сохранением`
-        : 'Распознано не всё: проверьте и дополните поля вручную',
-    );
+    setAssistNotice(draftNotice(draft, source));
   };
 
   const recognize = useMutation({
     mutationFn: () => draftDocument(organizationId, assistantText),
+    onMutate: () => setAssistNotice(null),
     onSuccess: (draft) => applyDraft(draft, 'text'),
-    onError: (error) => setAssistNotice(messageForError(error)),
+    onError: (error) => setAssistNotice({ tone: 'warning', text: assistantErrorMessage(error, 'text') }),
   });
 
   const recognizePhoto = useMutation({
@@ -160,8 +158,9 @@ export function DocumentFormPage({ mode }: Props) {
       setPhoto(prepared.dataUrl);
       return draftDocumentFromImage(organizationId, prepared.base64, 'image/jpeg');
     },
+    onMutate: () => setAssistNotice(null),
     onSuccess: (draft) => applyDraft(draft, 'photo'),
-    onError: (error) => setAssistNotice(error instanceof ApiError || !(error instanceof Error) ? messageForError(error) : 'Не удалось прочитать фото — попробуйте ещё раз'),
+    onError: (error) => setAssistNotice({ tone: 'warning', text: assistantErrorMessage(error, 'photo') }),
   });
 
   const save = useMutation({
@@ -331,8 +330,11 @@ export function DocumentFormPage({ mode }: Props) {
             </label>
           </div>
           {assistNotice ? (
-            <p className="assist__notice" aria-live="polite">
-              {assistNotice}
+            <p
+              className={cx('assist__notice', assistNotice.tone === 'warning' && 'assist__notice--warning')}
+              role={assistNotice.tone === 'warning' ? 'alert' : 'status'}
+            >
+              {assistNotice.text}
             </p>
           ) : null}
           {photo ? <img className="assist__photo" src={photo} alt="Фотография документа" /> : null}

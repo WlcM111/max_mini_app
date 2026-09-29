@@ -10,17 +10,24 @@ import (
 )
 
 const (
+	// Ключи ответа перечислены в самих инструкциях: разбор не зависит от того,
+	// учитывает ли модель response_format.
 	draftSystemPrompt = "Ты извлекаешь реквизиты документа из текста пользователя. " +
-		"Отвечай только JSON по заданной схеме. Бери значения исключительно из текста: " +
+		"Отвечай только объектом JSON с ключами title, number, issuer, valid_from, valid_until, " +
+		"document_type_code, confidence — без пояснений и обрамления. Бери значения исключительно из текста: " +
 		"ничего не додумывай и не дополняй по смыслу. Если значения нет — верни пустую строку. " +
-		"Даты приводи к формату YYYY-MM-DD. Поле document_type_code выбирай только из " +
+		"Даты приводи к формату YYYY-MM-DD. valid_from — дата начала действия; если отдельной даты начала нет, " +
+		"это дата выдачи или заключения документа («от 12.03.2022», «выдана 14.03.2024»). " +
+		"valid_until — дата окончания срока («до», «по», «действует до», «истекает»); не вычисляй её " +
+		"и не подставляй вместо неё дату выдачи. Поле document_type_code выбирай только из " +
 		"перечисленных кодов и только если документ явно относится к этому типу, иначе верни пустую строку. " +
 		"В поле confidence верни число от 0 до 1 — насколько уверенно реквизиты найдены в тексте."
 
 	profileSystemPrompt = "Ты сопоставляешь описание бизнеса с кодами справочника. " +
-		"Отвечай только JSON по заданной схеме. Выбирай коды исключительно из перечисленных списков. " +
+		"Отвечай только объектом JSON с ключами business_category_code, feature_codes, confidence — " +
+		"без пояснений и обрамления. Выбирай коды исключительно из перечисленных списков. " +
 		"В business_category_code верни один код вида деятельности или пустую строку, если ни один не подходит. " +
-		"В feature_codes верни коды признаков, которые прямо следуют из описания; не добавляй признаки по догадке. " +
+		"В feature_codes верни массив кодов признаков, которые прямо следуют из описания; не добавляй признаки по догадке. " +
 		"В поле confidence верни число от 0 до 1."
 
 	maxCompletionTokens = 512
@@ -126,7 +133,8 @@ func (c *Client) MatchProfile(ctx context.Context, description string, catalog p
 }
 
 // decodeModelJSON разбирает содержимое ответа модели, снимая обрамление ```json,
-// если модель всё же его добавила.
+// если модель всё же его добавила. Пустой ответ или текст вместо JSON означает, что
+// модель не нашла реквизитов или отказалась отвечать: ErrBadResponse и ErrNoResult.
 func decodeModelJSON(content string, out any) error {
 	trimmed := strings.TrimSpace(content)
 	if strings.HasPrefix(trimmed, "```") {
@@ -136,10 +144,10 @@ func decodeModelJSON(content string, out any) error {
 		trimmed = strings.TrimSpace(trimmed)
 	}
 	if trimmed == "" {
-		return ErrBadResponse
+		return fmt.Errorf("%w: %w: пустой ответ", ErrBadResponse, ErrNoResult)
 	}
 	if err := json.Unmarshal([]byte(trimmed), out); err != nil {
-		return fmt.Errorf("%w: %v", ErrBadResponse, err)
+		return fmt.Errorf("%w: %w: %v", ErrBadResponse, ErrNoResult, err)
 	}
 	return nil
 }

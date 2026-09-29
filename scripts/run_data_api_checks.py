@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Выполняет проверки из DATA-API.yaml. Требует PyYAML.
-Токены: VV_TOKEN_EDITOR, VV_TOKEN_VIEWER; базовый адрес можно переопределить VV_BASE_URL."""
-import json, os, sys, urllib.error, urllib.parse, urllib.request
+Токены: VV_TOKEN_EDITOR, VV_TOKEN_VIEWER; базовый адрес можно переопределить VV_BASE_URL.
+capture сохраняет значение из ответа для следующих проверок, signature сверяет первые байты файла."""
+import json, os, re, sys, urllib.error, urllib.parse, urllib.request
 import yaml
 
 cfg = yaml.safe_load(open("DATA-API.yaml", encoding="utf-8"))
 base = os.environ.get("VV_BASE_URL", cfg["base_url"]).rstrip("/")
-fx = cfg.get("fixtures", {})
+fx = dict(cfg.get("fixtures", {}))
 
 
 def has(obj, dotted):
@@ -24,7 +25,12 @@ def has(obj, dotted):
 failed = 0
 for c in cfg["checks"]:
     p = c.get("params") or {}
-    path = c["path"].format(**fx)
+    try:
+        path = c["path"].format(**fx)
+    except KeyError as missing:
+        failed += 1
+        print(f"FAIL {c['id']}: нет значения {missing} из предыдущей проверки")
+        continue
     q = p.get("query") or {}
     url = base + path + ("?" + urllib.parse.urlencode(q) if q else "")
     body = p.get("body")
@@ -35,7 +41,7 @@ for c in cfg["checks"]:
     if c["role"] != "anonymous":
         req.add_header("Authorization", "Bearer " + os.environ.get("VV_TOKEN_" + c["role"].upper(), ""))
     try:
-        resp = urllib.request.urlopen(req, timeout=15)
+        resp = urllib.request.urlopen(req, timeout=60)
         status, ctype, raw = resp.status, resp.headers.get("Content-Type", ""), resp.read()
     except urllib.error.HTTPError as e:
         status, ctype, raw = e.code, e.headers.get("Content-Type", ""), e.read()
@@ -43,11 +49,21 @@ for c in cfg["checks"]:
     exp = c.get("response") or {}
     if ok and exp.get("content_type"):
         ok = ctype.split(";")[0].strip() == exp["content_type"]
-    if ok and exp.get("required_fields"):
+    if ok and exp.get("signature"):
+        ok = raw[: len(exp["signature"])] == exp["signature"].encode()
+    doc = None
+    if ctype.split(";")[0].strip().endswith("json"):
         try:
             doc = json.loads(raw or b"null")
-            ok = all(has(doc, f) for f in exp["required_fields"])
         except ValueError:
+            doc = None
+    if ok and exp.get("required_fields"):
+        ok = doc is not None and all(has(doc, f) for f in exp["required_fields"])
+    for name, rule in (c.get("capture") or {}).items():
+        found = re.search(rule["pattern"], str(doc.get(rule["field"], "")) if isinstance(doc, dict) else "")
+        if ok and found:
+            fx[name] = found.group(1)
+        else:
             ok = False
     failed += 0 if ok else 1
     print(f"{'PASS' if ok else 'FAIL'} {c['id']} {c['method']} {path} -> {status} {ctype}")

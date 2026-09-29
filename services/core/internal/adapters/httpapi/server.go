@@ -96,10 +96,18 @@ func (s *Server) withInflight(next http.Handler) http.Handler {
 	})
 }
 
-// withTimeout задаёт бюджет обработчика.
+// withTimeout задаёт бюджет обработчика. Операциям ассистента бюджет расширяется
+// вместе со сроками чтения тела и записи ответа (ADR-033).
 func (s *Server) withTimeout(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), s.cfg.HandlerTimeout)
+		budget := requestBudget(r.Method, r.URL.Path, s.cfg.HandlerTimeout, s.cfg.GigaChatTimeout)
+		if budget > s.cfg.HandlerTimeout {
+			deadline := time.Now().Add(budget + assistantBudgetMargin)
+			rc := http.NewResponseController(w)
+			_ = rc.SetReadDeadline(deadline) // медленная мобильная сеть при отправке фото
+			_ = rc.SetWriteDeadline(deadline)
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), budget)
 		defer cancel()
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

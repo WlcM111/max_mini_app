@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocation, useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import type { DocumentCreate } from '../../api/client';
 import { queryKeys } from '../../api/queryKeys';
 import { ApiError, messageForError } from '../../api/errors';
@@ -12,34 +12,43 @@ import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateViews';
 import { Steps } from '../../shared/ui/Steps';
 import { ToggleRow } from '../../shared/ui/Switch';
 import { toast } from '../../shared/ui/Toast';
+import { plural } from '../../shared/lib/plural';
 import { validateDates } from '../../shared/lib/validation';
 import { uuidV4 } from '../../shared/lib/uuid';
 import { createDocumentsBatch } from '../documents/api';
 import { getCatalog } from '../organizations/api';
+import { clearPick, readPick, type PickScope } from './documentPick';
 import { getDraft, resetDraft } from './onboardingDraft';
+
+const BATCH = 30; // domain.MaxDocumentsPerBatch
+const DEFAULT_OFFSETS = [30, 7, 1];
+const DOCS: [string, string, string] = ['документ', 'документа', 'документов'];
 
 interface Entry {
   id: string;
-  typeCode: string;
+  typeCode: string | null; // null — свой документ без типа
   title: string;
   validUntil: string | null;
   indefinite: boolean;
   offsets: number[];
 }
 
-/** Шаг 4: сроки выбранных документов; пакет создаётся одним запросом (FR-08). */
+/** Шаг 4: сроки выбранных документов; сохраняются пакетами до 30 штук (FR-05, FR-27). */
 export function DatesPage() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { orgId } = useParams();
   const queryClient = useQueryClient();
-  const fromDashboard = (location.state as { from?: string } | null)?.from === 'dashboard';
-  const draft = getDraft();
+  const inOrganization = Boolean(orgId);
+  const scope = useMemo<PickScope>(() => (orgId ? { kind: 'organization', organizationId: orgId } : { kind: 'onboarding' }), [orgId]);
+  const organizationId = orgId ?? getDraft().organizationId;
+  const [pick] = useState(() => readPick(scope));
   const [error, setError] = useState<string | null>(null);
+  const saved = useRef(new Set<string>());
   const catalog = useQuery({ queryKey: queryKeys.catalog(), queryFn: getCatalog, staleTime: Infinity });
 
   const initial = useMemo<Entry[]>(() => {
     const types = catalog.data?.document_types ?? [];
-    return draft.selectedTypes.map((code) => {
+    const typical = pick.selectedTypes.map((code) => {
       const type = types.find((item) => item.code === code);
       return {
         id: uuidV4(),
@@ -47,42 +56,62 @@ export function DatesPage() {
         title: type?.title ?? code,
         validUntil: null,
         indefinite: false,
-        offsets: type && type.default_reminder_offsets_days.length > 0 ? [...type.default_reminder_offsets_days] : [30, 7, 1],
+        offsets: type && type.default_reminder_offsets_days.length > 0 ? [...type.default_reminder_offsets_days] : DEFAULT_OFFSETS,
       };
     });
-  }, [catalog.data, draft.selectedTypes]);
+    const custom = pick.customDocuments.map((item) => ({
+      id: item.id,
+      typeCode: null,
+      title: item.title,
+      validUntil: null,
+      indefinite: false,
+      offsets: DEFAULT_OFFSETS,
+    }));
+    return [...typical, ...custom];
+  }, [catalog.data, pick]);
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const rows = entries ?? initial;
 
   const save = useMutation({
-    mutationFn: () => {
-      const items: DocumentCreate[] = rows.map((entry) => ({
-        id: entry.id,
-        document_type_code: entry.typeCode,
-        title: entry.title,
-        number: null,
-        issuer: null,
-        responsible_label: null,
-        notes: null,
-        reference_url: null,
-        valid_from: null,
-        valid_until: entry.indefinite ? null : entry.validUntil,
-        reminder_offsets_days: entry.offsets,
-      }));
-      return createDocumentsBatch(draft.organizationId, items);
+    // Пакеты по 30: уже сохранённые при повторе не отправляются, id остаются прежними.
+    mutationFn: async () => {
+      const pending = rows.filter((entry) => !saved.current.has(entry.id));
+      for (let start = 0; start < pending.length; start += BATCH) {
+        const chunk = pending.slice(start, start + BATCH);
+        const items: DocumentCreate[] = chunk.map((entry) => ({
+          id: entry.id,
+          document_type_code: entry.typeCode,
+          title: entry.title,
+          number: null,
+          issuer: null,
+          responsible_label: null,
+          notes: null,
+          reference_url: null,
+          valid_from: null,
+          valid_until: entry.indefinite ? null : entry.validUntil,
+          reminder_offsets_days: entry.offsets,
+        }));
+        await createDocumentsBatch(organizationId, items);
+        chunk.forEach((entry) => saved.current.add(entry.id));
+      }
     },
     onSuccess: async () => {
-      const organizationId = draft.organizationId;
-      resetDraft();
       await queryClient.invalidateQueries({ queryKey: queryKeys.organization(organizationId) });
       await queryClient.invalidateQueries({ queryKey: ['documents'] });
       await queryClient.invalidateQueries({ queryKey: queryKeys.suggestions(organizationId) });
+      if (inOrganization) {
+        clearPick(scope);
+        toast(`Добавлено: ${rows.length} ${plural(rows.length, DOCS)}`, 'success');
+        navigate(-2); // назад к экрану, откуда начали подбор
+        return;
+      }
+      resetDraft();
       toast('Документы добавлены', 'success');
       navigate(`/o/${organizationId}`, { replace: true });
     },
     onError: (failure) => {
       if (failure instanceof ApiError && failure.code === 'CONFLICT_ID_REUSED') {
-        setEntries(rows.map((entry) => ({ ...entry, id: uuidV4() })));
+        setEntries(rows.map((entry) => (saved.current.has(entry.id) ? entry : { ...entry, id: uuidV4() })));
         setError('Повторите сохранение: идентификаторы обновлены.');
         return;
       }
@@ -90,7 +119,7 @@ export function DatesPage() {
     },
   });
 
-  const steps = fromDashboard ? null : <Steps current={4} total={4} />;
+  const steps = inOrganization ? null : <Steps current={4} total={4} />;
 
   if (catalog.isLoading) {
     return (
@@ -115,8 +144,8 @@ export function DatesPage() {
           art="none"
           title="Документы не выбраны"
           action={
-            <Button variant="secondary" onClick={() => navigate('/', { replace: true })}>
-              На главную
+            <Button variant="secondary" onClick={() => navigate(inOrganization ? `/o/${organizationId}/documents` : '/', { replace: true })}>
+              {inOrganization ? 'К документам' : 'На главную'}
             </Button>
           }
         />
@@ -141,7 +170,7 @@ export function DatesPage() {
 
   return (
     <AppShell
-      layout="split"
+      layout={inOrganization ? 'stack' : 'split'}
       title="Сроки документов"
       subtitle="Дату можно не указывать — вернётесь к ней позже в карточке документа."
       headerExtra={steps}
@@ -163,8 +192,14 @@ export function DatesPage() {
         {rows.map((entry, index) => (
           <section key={entry.id} className="form-card" aria-label={entry.title}>
             <h2 className="form-card__title">{entry.title}</h2>
+            {entry.typeCode === null ? <span className="pill pill--accent">Свой документ</span> : null}
             {!entry.indefinite ? (
-              <DateField label="Действует до" value={entry.validUntil} onChange={(value) => updateEntry(index, { validUntil: value })} />
+              <DateField
+                label="Действует до"
+                value={entry.validUntil}
+                pickerDescription={entry.title}
+                onChange={(value) => updateEntry(index, { validUntil: value })}
+              />
             ) : null}
             <ToggleRow
               flush

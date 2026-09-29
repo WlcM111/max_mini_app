@@ -27,6 +27,13 @@ type AssistantDraft struct {
 	Confidence       float64
 }
 
+// Empty сообщает, что ассистент не нашёл ни одного реквизита: пользователю нечего
+// проверять, и сценарий отвечает DOCUMENT_NOT_RECOGNIZED.
+func (d AssistantDraft) Empty() bool {
+	return d.Title == "" && d.Number == "" && d.Issuer == "" && d.ValidFrom == "" && d.ValidUntil == "" &&
+		d.DocumentTypeCode == ""
+}
+
 // AssistantProfile — проверенный профиль организации по описанию.
 type AssistantProfile struct {
 	BusinessCategoryCode string
@@ -57,27 +64,34 @@ func clampRunes(s string, max int) string {
 }
 
 // ParseAssistantDate приводит дату ответа модели к YYYY-MM-DD. Допускаются форматы
-// YYYY-MM-DD и DD.MM.YYYY; значения вне разумного диапазона отбрасываются.
+// YYYY-MM-DD и DD.MM.YYYY (день и месяц — одной или двумя цифрами, разделитель — точка
+// или косая черта), в том числе с временем после даты; значения вне разумного
+// диапазона отбрасываются.
 func ParseAssistantDate(value string, now time.Time) string {
 	trimmed := strings.TrimSpace(value)
+	if len(trimmed) > 10 && (trimmed[10] == 'T' || trimmed[10] == ' ') {
+		trimmed = trimmed[:10] // 2029-03-13T00:00:00Z
+	}
 	if trimmed == "" {
 		return ""
 	}
 	var parsed time.Time
 	var err error
-	for _, layout := range []string{"2006-01-02", "02.01.2006", "02/01/2006"} {
+	for _, layout := range []string{"2006-1-2", "2.1.2006", "2/1/2006"} {
 		parsed, err = time.Parse(layout, trimmed)
 		if err == nil {
 			break
 		}
 	}
-	if err != nil {
-		return ""
-	}
-	if parsed.Year() < AssistantMinYear || parsed.Year() > now.UTC().Year()+AssistantMaxYearAhead {
+	if err != nil || !assistantYearInRange(parsed.Year(), now) {
 		return ""
 	}
 	return parsed.Format("2006-01-02")
+}
+
+// assistantYearInRange отсекает явные ошибки распознавания: даты до 1990 года и дальше 30 лет вперёд.
+func assistantYearInRange(year int, now time.Time) bool {
+	return year >= AssistantMinYear && year <= now.UTC().Year()+AssistantMaxYearAhead
 }
 
 // SanitizeAssistantDraft приводит ответ модели к безопасному черновику: режет длины,

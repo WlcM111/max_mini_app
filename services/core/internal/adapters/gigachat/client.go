@@ -28,6 +28,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"vovremya/services/core/internal/ports"
 )
 
 // Ошибки клиента.
@@ -35,6 +37,13 @@ var (
 	ErrBudgetExceeded = errors.New("gigachat: исчерпан суточный бюджет токенов")
 	ErrBadResponse    = errors.New("gigachat: ответ не соответствует схеме")
 )
+
+// ErrNoResult — модель ответила, но не по схеме или отказалась отвечать по содержанию
+// (finish_reason = blacklist): текст или фото не подходят, сервис при этом исправен.
+var ErrNoResult = fmt.Errorf("gigachat: модель не вернула реквизиты: %w", ports.ErrAssistantNoResult)
+
+// finishBlacklist — ответ заменён ограничителем GigaChat: запрос не обрабатывается по содержанию.
+const finishBlacklist = "blacklist"
 
 // Config — параметры клиента.
 type Config struct {
@@ -225,8 +234,8 @@ func (c *Client) complete(ctx context.Context, operation string, req chatRequest
 			continue
 		}
 		content, usage, retryable, err := c.doComplete(ctx, token, payload)
+		c.addUsage(operation, usage)
 		if err == nil {
-			c.addUsage(operation, usage)
 			return content, nil
 		}
 		lastErr = err
@@ -263,11 +272,21 @@ func (c *Client) doComplete(ctx context.Context, token string, payload []byte) (
 	case resp.StatusCode != http.StatusOK:
 		return "", 0, false, fmt.Errorf("gigachat: генерация: статус %d", resp.StatusCode)
 	}
+	content, usage, err := parseChatResponse(body)
+	return content, usage, false, err
+}
+
+// parseChatResponse извлекает ответ модели. Сработавший ограничитель по содержанию
+// (finish_reason = blacklist) — ErrNoResult: повтор того же запроса бесполезен.
+func parseChatResponse(body []byte) (string, int, error) {
 	var parsed chatResponse
 	if err := json.Unmarshal(body, &parsed); err != nil || len(parsed.Choices) == 0 {
-		return "", 0, false, ErrBadResponse
+		return "", 0, ErrBadResponse
 	}
-	return parsed.Choices[0].Message.Content, parsed.Usage.TotalTokens, false, nil
+	if parsed.Choices[0].FinishReason == finishBlacklist {
+		return "", parsed.Usage.TotalTokens, ErrNoResult
+	}
+	return parsed.Choices[0].Message.Content, parsed.Usage.TotalTokens, nil
 }
 
 func (c *Client) invalidateToken() {

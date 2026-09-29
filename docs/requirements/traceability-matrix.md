@@ -1,6 +1,6 @@
 # Матрица трассируемости
 
-Версия 1.0.0 · 20.09.2026. Задачи — [team-plan.md](../plan/team-plan.md); проверки — [test-strategy.md](../testing/test-strategy.md) и [acceptance.md](../testing/acceptance.md).
+Версия 1.1.0 · 29.09.2026. Задачи — [team-plan.md](../plan/team-plan.md); проверки — [test-strategy.md](../testing/test-strategy.md) и [acceptance.md](../testing/acceptance.md).
 
 | Требование | Проектное решение | Артефакт | Задача | Проверка |
 |---|---|---|---|---|
@@ -28,6 +28,14 @@
 | FR-17 | ADR-016 | CLI `review-token`, `seed-demo`, DATA-API.yaml | CORE-07, DEMO-01 | AC-11 |
 | FR-18 | ADR-012 | `POST /client-events` | CORE-07, FE-05 | T-API |
 | FR-19 | ADR-010 | `NOTIFICATION_KIND_MEMBER_JOINED` | CORE-06 | T-APP-INV |
+| FR-20 | ADR-001 | `renewalChecklist.ts`, DocumentCardPage | FE-03 | unit-тесты `renewalChecklist`, T-FE-PAGE |
+| FR-21 | ADR-032, ADR-033 | `POST /organizations/{id}/documents/draft`, adapters/gigachat, domain/assistant_dates.go | доработка 26–29.09 | `TestAssistantDraftDocument`, `TestAssistantDraftMergesTextDates`, `TestExtractTextDates`, T-FE-LLM |
+| FR-22 | ADR-032 | `POST /profile-match` | доработка 26–29.09 | `TestAssistantMatchProfile`, T-FE-LLM |
+| FR-23 | ADR-033 | `POST /organizations/{id}/documents/draft-image`, gigachat/vision.go, httpapi/budget.go, Caddy `@draftImage` | доработка 28–29.09 | `TestAssistantDraftImage`, `TestDraftDocumentFromImage*`, `TestRequestBudget`, T-FE-LLM (фото) |
+| FR-24 | ADR-034 | ImportPage, importRows.ts, shared/lib/spreadsheet.ts, `POST …/documents/batch` | доработка 28–29.09 | T-FE-IMPORT, DATA-API `documents-batch` |
+| FR-25 | ADR-035 | adapters/xlsx/registry.go, `GET /downloads/{token}?format=xlsx`, RegistryExportButton | доработка 28–29.09 | `TestRegistry`, `TestDocumentsLifecycleAndRegistry`, DATA-API `registry-xlsx` |
+| FR-26 | ADR-036 | services/bot/internal/app/snooze.go, domain/snooze.go, подписка `message_callback`, `POST /answers` | доработка 28–29.09 | `TestSnooze*`, README §12.2 шаг 10 |
+| FR-27 | ADR-001 | SuggestionsPage, DatesPage, documentPick.ts, маршрут `/o/:orgId/documents/typical` | доработка 29.09 | T-FE-TYPICAL, T-FE-PAGE |
 | NFR-01 | ADR-003, spec §6 | platform/max adapter | FE-01, MAX-03, MAX-04 | AC-MAX-01 |
 | NFR-02 | load-reliability | индексы, пулы, лимиты | CORE-04, TST-03 | T-NFR-LOAD |
 | NFR-03 | frontend-architecture §производительность | Vite code splitting | FE-05 | T-NFR-FE-SIZE |
@@ -82,7 +90,7 @@
 | PLAT-07 | max-integration-spec §6 | вызовы Bridge из обработчиков клика | FE-04 | T-FE-MAX |
 | PLAT-08 | max-integration-spec §6 | запасные пути для web и desktop | FE-03, FE-04, MAX-03 | T-FE-MAX, AC-MAX-09 |
 | DOC-01 | ARCHITECTURE_TZ.md | 26 обязательных разделов и приложения | PLN-01 | проверка 2 отчёта |
-| DOC-02 | adr/ | ADR-001…ADR-016 | PLN-01 | проверка 2 отчёта |
+| DOC-02 | adr/ | ADR-001…ADR-036 | PLN-01 | проверка 2 отчёта |
 | DOC-03 | system-overview, backend-services, sequences, long-operations, deployment, frontend-architecture | диаграммы D1–D9 | PLN-01 | рендеринг Mermaid (отчёт §2) |
 | DOC-04 | ADR-003 | сравнение вариантов frontend | PLN-01 | проверка 17 отчёта |
 | DOC-05 | data-model §5 | нормализация | PLN-01 | проверка 16 отчёта |

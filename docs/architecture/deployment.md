@@ -21,7 +21,7 @@ flowchart TB
     v1[("том pgdata")]
     v2[("тома caddy_data, caddy_config")]
   end
-  maxapi["platform-api2.max.ru"]
+  maxapi["botapi.max.ru"]
   internet -->|"443 HTTPS, 80 ACME и редирект"| edge
   edge -->|"/api/*"| core
   edge -->|"POST /max/webhook"| bot

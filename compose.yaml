@@ -112,7 +112,7 @@ services:
       BOT_ADMIN_ADDR: ":8081"
       BOT_GRPC_ADDR: "10.77.2.10:9090"
       BOT_DATABASE_URL: postgres://bot_app:${PG_BOT_APP_PASSWORD:-devonly_bot_app}@postgres:5432/vovremya?sslmode=disable
-      BOT_MAX_API_BASE_URL: ${BOT_MAX_API_BASE_URL:-https://platform-api2.max.ru}
+      BOT_MAX_API_BASE_URL: ${BOT_MAX_API_BASE_URL:-https://botapi.max.ru}
       BOT_MAX_TOKEN: ${MAX_BOT_TOKEN:-}
       BOT_MAX_EXTRA_CA_FILE: /etc/vovremya/ca/russian_trusted_ca_bundle.pem
       BOT_WEBHOOK_PUBLIC_URL: ${BOT_WEBHOOK_PUBLIC_URL:-}

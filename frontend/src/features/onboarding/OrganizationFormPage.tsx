@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { queryKeys } from '../../api/queryKeys';
-import { messageForError } from '../../api/errors';
+import { assistantErrorMessage } from '../../api/errors';
 import { AppShell } from '../../shared/ui/AppShell';
 import { Button } from '../../shared/ui/Button';
 import { SelectField, TextAreaField, TextField } from '../../shared/ui/Field';
@@ -48,7 +48,7 @@ export function OrganizationFormPage() {
           : 'По описанию ничего не подобрано — заполните поля вручную',
       );
     },
-    onError: (error) => setNotice(messageForError(error)),
+    onError: (error) => setNotice(assistantErrorMessage(error, 'profile')),
   });
 
   useEffect(() => {

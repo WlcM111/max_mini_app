@@ -1,6 +1,8 @@
 package integration_test
 
 import (
+	"bytes"
+	"encoding/base64"
 	"net/http"
 	"strings"
 	"testing"
@@ -293,3 +295,118 @@ func TestAssistantRateLimited(t *testing.T) {
 type errAssistantDown struct{}
 
 func (errAssistantDown) Error() string { return "ассистент недоступен" }
+
+// problemBody — поля problem+json, которые проверяют тесты ассистента.
+type problemBody struct {
+	Code   string `json:"code"`
+	Status int    `json:"status"`
+	Errors []struct {
+		Field string `json:"field"`
+		Code  string `json:"code"`
+	} `json:"errors"`
+}
+
+// TestAssistantDraftMergesTextDates: дата с маркером «от» из текста попадает в начало действия,
+// даже если модель её пропустила или поставила в окончание срока.
+func TestAssistantDraftMergesTextDates(t *testing.T) {
+	h := testutil.NewHarness(t)
+	owner := newClient(t, h, 9111, "Владелец")
+	orgID := owner.createOrganization(uuidFor(9111), "Кафе").ID
+	const text = "Лицензия на Алкоголь от 12.03.2022"
+
+	for _, model := range []ports.DocumentDraft{
+		{Title: "Лицензия на Алкоголь", Confidence: 0.6},
+		{Title: "Лицензия на Алкоголь", ValidUntil: "2022-03-12", Confidence: 0.6},
+	} {
+		h.Assistant.SetDraft(model)
+		var draft draftResponse
+		if status := owner.do(http.MethodPost, "/api/v1/organizations/"+orgID+"/documents/draft",
+			map[string]any{"text": text}, &draft); status != http.StatusOK {
+			t.Fatalf("черновик: статус %d", status)
+		}
+		if draft.ValidFrom == nil || *draft.ValidFrom != "2022-03-12" {
+			t.Fatalf("дата выдачи должна стать началом действия: %v (модель: %+v)", draft.ValidFrom, model)
+		}
+		if draft.ValidUntil != nil {
+			t.Fatalf("срок окончания в тексте не указан и не вычисляется: %v", *draft.ValidUntil)
+		}
+	}
+}
+
+// TestAssistantDraftNotRecognized: вход без реквизитов — 422 DOCUMENT_NOT_RECOGNIZED, а не 503.
+func TestAssistantDraftNotRecognized(t *testing.T) {
+	h := testutil.NewHarness(t)
+	owner := newClient(t, h, 9112, "Владелец")
+	orgID := owner.createOrganization(uuidFor(9112), "Кафе").ID
+	path := "/api/v1/organizations/" + orgID + "/documents/draft"
+
+	var problem problemBody
+	h.Assistant.SetDraft(ports.DocumentDraft{})
+	if status := owner.do(http.MethodPost, path, map[string]any{"text": "привет"}, &problem); status != http.StatusUnprocessableEntity ||
+		problem.Code != "DOCUMENT_NOT_RECOGNIZED" {
+		t.Fatalf("пустой черновик: статус %d, код %q", status, problem.Code)
+	}
+
+	h.Assistant.SetError(ports.ErrAssistantNoResult)
+	if status := owner.do(http.MethodPost, path, map[string]any{"text": "привет"}, &problem); status != http.StatusUnprocessableEntity ||
+		problem.Code != "DOCUMENT_NOT_RECOGNIZED" {
+		t.Fatalf("отказ модели по содержанию: статус %d, код %q", status, problem.Code)
+	}
+
+	// Даже без ответа модели срок с явным маркером берётся из текста.
+	var draft draftResponse
+	if status := owner.do(http.MethodPost, path, map[string]any{"text": "Действует до 13.03.2029"}, &draft); status != http.StatusOK {
+		t.Fatalf("текст со сроком: статус %d", status)
+	}
+	if draft.ValidUntil == nil || *draft.ValidUntil != "2029-03-13" {
+		t.Fatalf("срок из текста не подставлен: %v", draft.ValidUntil)
+	}
+}
+
+// jpegBytes — байты с сигнатурой JPEG: сценарий проверяет формат по сигнатуре, не декодируя файл.
+var jpegBytes = []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00, 0xFF, 0xD9}
+
+// TestAssistantDraftImage: FR-23 — черновик по фотографии и понятные отказы.
+func TestAssistantDraftImage(t *testing.T) {
+	h := testutil.NewHarness(t)
+	owner := newClient(t, h, 9113, "Владелец")
+	orgID := owner.createOrganization(uuidFor(9113), "Кафе").ID
+	path := "/api/v1/organizations/" + orgID + "/documents/draft-image"
+	photo := map[string]any{"image": base64.StdEncoding.EncodeToString(jpegBytes), "mime_type": "image/jpeg"}
+
+	h.Assistant.SetDraft(ports.DocumentDraft{Title: "Лицензия", Number: "78РПА1", ValidUntil: "13.03.2029", Confidence: 0.8})
+	var draft draftResponse
+	if status := owner.do(http.MethodPost, path, photo, &draft); status != http.StatusOK {
+		t.Fatalf("распознавание фото: статус %d", status)
+	}
+	if draft.Title != "Лицензия" || draft.ValidUntil == nil || *draft.ValidUntil != "2029-03-13" {
+		t.Fatalf("черновик по фото разобран неверно: %+v", draft)
+	}
+	if !bytes.Equal(h.Assistant.LastImage(), jpegBytes) {
+		t.Fatal("ассистенту должны передаваться декодированные байты фотографии")
+	}
+
+	var problem problemBody
+	wrongType := map[string]any{"image": photo["image"], "mime_type": "image/png"}
+	if status := owner.do(http.MethodPost, path, wrongType, &problem); status != http.StatusBadRequest ||
+		len(problem.Errors) == 0 || problem.Errors[0].Field != "image" {
+		t.Fatalf("несовпадение формата: статус %d, %+v", status, problem)
+	}
+
+	h.Assistant.SetDraft(ports.DocumentDraft{})
+	if status := owner.do(http.MethodPost, path, photo, &problem); status != http.StatusUnprocessableEntity ||
+		problem.Code != "DOCUMENT_NOT_RECOGNIZED" {
+		t.Fatalf("фото без реквизитов: статус %d, код %q", status, problem.Code)
+	}
+
+	h.Assistant.SetError(ports.ErrAssistantNoResult)
+	if status := owner.do(http.MethodPost, path, photo, &problem); status != http.StatusUnprocessableEntity {
+		t.Fatalf("отказ модели читать фото: статус %d", status)
+	}
+
+	h.Assistant.SetError(errAssistantDown{})
+	if status := owner.do(http.MethodPost, path, photo, &problem); status != http.StatusServiceUnavailable ||
+		problem.Code != "DEPENDENCY_UNAVAILABLE" {
+		t.Fatalf("сбой сервиса: статус %d, код %q", status, problem.Code)
+	}
+}

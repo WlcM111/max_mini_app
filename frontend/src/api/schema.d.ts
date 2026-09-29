@@ -148,6 +148,9 @@ export interface paths {
          *     Операция ничего не сохраняет: документ создаётся обычным `POST .../documents`
          *     после подтверждения пользователем. Коды типов проверяются по справочнику,
          *     даты приводятся к `YYYY-MM-DD`; нераспознанные значения возвращаются пустыми.
+         *     Даты с явными маркерами в тексте («от», «выдана» — начало, «до», «по» — окончание)
+         *     дополнительно извлекаются сервером без модели (ADR-033).
+         *     Если реквизитов в тексте нет — 422 `DOCUMENT_NOT_RECOGNIZED`; при сбое сервиса — 503.
          *     Доступна, если `assistant_enabled` в `GET /me` равно `true`, иначе 503.
          */
         post: operations["draftDocument"];
@@ -170,9 +173,12 @@ export interface paths {
         put?: never;
         /**
          * Черновик карточки документа по фотографии
-         * @description Фотография документа передаётся ассистенту (GigaChat, ADR-032) для чтения реквизитов
+         * @description Фотография документа передаётся ассистенту (GigaChat, ADR-033) для чтения реквизитов
          *     и сразу удаляется из хранилища GigaChat; сервис изображение не сохраняет.
-         *     Ответ — тот же черновик, что у `.../documents/draft`. Изображение JPEG или PNG до 5 МБ.
+         *     Ответ — тот же черновик, что у `.../documents/draft`. Изображение JPEG или PNG до 5 МБ
+         *     (edge принимает тело этой операции до 8 МБ). Ожидание ответа — до 3 × `CORE_GIGACHAT_TIMEOUT`.
+         *     Если на фото нет документа, реквизиты не читаются или модель отказалась обработать
+         *     изображение — 422 `DOCUMENT_NOT_RECOGNIZED`; при сбое сервиса — 503.
          */
         post: operations["draftDocumentImage"];
         delete?: never;
@@ -424,7 +430,11 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Скачать ICS по одноразовой ссылке (без Bearer; не более 3 скачиваний за 10 минут) */
+        /**
+         * Скачать ICS или реестр .xlsx по временной ссылке (без Bearer; не более 3 скачиваний за 10 минут)
+         * @description Без параметра отдаётся календарь сроков `.ics`. С `format=xlsx` по той же ссылке отдаётся
+         *     реестр документов в Excel (FR-25, ADR-035); скачивания обоих форматов считаются вместе.
+         */
         get: operations["downloadCalendar"];
         put?: never;
         post?: never;
@@ -513,7 +523,7 @@ export interface components {
          */
         RemindersState: "actual" | "pending" | "unavailable";
         /** @enum {string} */
-        ErrorCode: "VALIDATION_FAILED" | "UNAUTHENTICATED" | "LAUNCH_DATA_INVALID" | "LAUNCH_DATA_EXPIRED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT_VERSION" | "CONFLICT_ID_REUSED" | "INVITE_INVALID" | "INVITE_EXPIRED" | "ALREADY_MEMBER" | "QUOTA_EXCEEDED" | "LINK_GONE" | "RATE_LIMITED" | "OVERLOADED" | "DEPENDENCY_UNAVAILABLE" | "INTERNAL";
+        ErrorCode: "VALIDATION_FAILED" | "UNAUTHENTICATED" | "LAUNCH_DATA_INVALID" | "LAUNCH_DATA_EXPIRED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT_VERSION" | "CONFLICT_ID_REUSED" | "INVITE_INVALID" | "INVITE_EXPIRED" | "ALREADY_MEMBER" | "QUOTA_EXCEEDED" | "LINK_GONE" | "RATE_LIMITED" | "OVERLOADED" | "DEPENDENCY_UNAVAILABLE" | "DOCUMENT_NOT_RECOGNIZED" | "INTERNAL";
         FieldError: {
             field: string;
             /** @enum {string} */
@@ -975,6 +985,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Реквизиты документа не найдены в тексте или на фото (DOCUMENT_NOT_RECOGNIZED) */
+        Unrecognized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
     parameters: {
         OrganizationId: string;
@@ -1292,6 +1311,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["Unrecognized"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["Unavailable"];
             default: components["responses"]["Unexpected"];
@@ -1330,6 +1350,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["Unrecognized"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["Unavailable"];
             default: components["responses"]["Unexpected"];
@@ -1900,6 +1921,7 @@ export interface operations {
                 };
                 content: {
                     "text/calendar": string;
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
                 };
             };
             404: components["responses"]["NotFound"];

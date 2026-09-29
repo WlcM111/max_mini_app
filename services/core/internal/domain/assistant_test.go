@@ -105,3 +105,71 @@ func TestSanitizeAssistantProfile(t *testing.T) {
 		t.Fatalf("неизвестные значения должны отбрасываться: %+v", unknown)
 	}
 }
+
+func TestParseAssistantDateLayouts(t *testing.T) {
+	now := time.Date(2026, 9, 25, 0, 0, 0, 0, time.UTC)
+	cases := map[string]string{
+		"2029-3-13":            "2029-03-13",
+		"3.9.2027":             "2027-09-03",
+		"2029-03-13T00:00:00Z": "2029-03-13",
+		"2029-03-13 00:00":     "2029-03-13",
+	}
+	for in, want := range cases {
+		if got := domain.ParseAssistantDate(in, now); got != want {
+			t.Fatalf("ParseAssistantDate(%q) = %q, ожидалось %q", in, got, want)
+		}
+	}
+}
+
+func TestExtractTextDates(t *testing.T) {
+	now := time.Date(2026, 9, 25, 0, 0, 0, 0, time.UTC)
+	cases := []struct {
+		text        string
+		from, until string
+	}{
+		{"Лицензия на Алкоголь от 12.03.2022", "2022-03-12", ""},
+		{"Лицензия № 78РПА0012345, выдана 14.03.2024, действует до 13.03.2029", "2024-03-14", "2029-03-13"},
+		{"Договор аренды с 01.01.2025 по 31.12.2025", "2025-01-01", "2025-12-31"},
+		{"Срок действия: до 13 марта 2029 г.", "", "2029-03-13"},
+		{"Дата начала действия 01.02.2026, дата окончания 31.01.2027", "2026-02-01", "2027-01-31"},
+		{"Сертификат 2027-05-20", "", ""},
+		{"Удостоверение до 31.02.2027", "", ""},
+		{"Номер 112.03.2022 до 1.4.28", "", "2028-04-01"},
+		{"Продлена до 01.06.2030, прежний срок до 01.06.2025", "", "2030-06-01"},
+	}
+	for _, c := range cases {
+		got := domain.ExtractTextDates(c.text, now)
+		if got.From != c.from || got.Until != c.until {
+			t.Fatalf("ExtractTextDates(%q) = %+v, ожидалось from=%q until=%q", c.text, got, c.from, c.until)
+		}
+	}
+}
+
+func TestMergeTextDates(t *testing.T) {
+	found := domain.TextDates{From: "2022-03-12"}
+	// Модель поставила дату выдачи в окончание срока — исправляется.
+	fixed := domain.MergeTextDates(domain.AssistantDraft{Title: "Лицензия", ValidUntil: "2022-03-12"}, found)
+	if fixed.ValidFrom != "2022-03-12" || fixed.ValidUntil != "" {
+		t.Fatalf("дата выдачи должна перейти в начало действия: %+v", fixed)
+	}
+	// Значения модели сохраняются, пустые поля дополняются.
+	kept := domain.MergeTextDates(domain.AssistantDraft{ValidUntil: "2029-03-13"},
+		domain.TextDates{From: "2024-03-14", Until: "2029-01-01"})
+	if kept.ValidFrom != "2024-03-14" || kept.ValidUntil != "2029-03-13" {
+		t.Fatalf("значения модели не должны заменяться: %+v", kept)
+	}
+	// Перевёрнутая пара теряет дату начала, срок окончания остаётся.
+	reversed := domain.MergeTextDates(domain.AssistantDraft{ValidFrom: "2030-01-01"}, domain.TextDates{Until: "2029-03-13"})
+	if reversed.ValidFrom != "" || reversed.ValidUntil != "2029-03-13" {
+		t.Fatalf("срок окончания важнее даты начала: %+v", reversed)
+	}
+}
+
+func TestAssistantDraftEmpty(t *testing.T) {
+	if !(domain.AssistantDraft{Confidence: 0.4}).Empty() {
+		t.Fatal("черновик без реквизитов должен считаться пустым")
+	}
+	if (domain.AssistantDraft{ValidUntil: "2029-03-13"}).Empty() {
+		t.Fatal("черновик со сроком не пуст")
+	}
+}

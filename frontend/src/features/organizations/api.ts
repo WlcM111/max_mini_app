@@ -54,4 +54,4 @@ export const listSuggestions = (organizationId: string): Promise<Suggestion[]> =
  * Возвращает только коды справочника; организацию не создаёт и не изменяет.
  */
 export const matchProfile = (description: string): Promise<ProfileMatch> =>
-  run(({ headers, signal }) => client.POST('/profile-match', { body: { description }, headers, signal }));
+  run(({ headers, signal }) => client.POST('/profile-match', { body: { description }, headers, signal }), { timeoutMs: 20_000 });

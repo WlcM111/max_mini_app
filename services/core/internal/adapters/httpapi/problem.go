@@ -1,4 +1,4 @@
-// Package httpapi — публичный HTTP API мини-приложения (openapi.yaml 1.1.0).
+// Package httpapi — публичный HTTP API мини-приложения (openapi.yaml 1.3.0).
 package httpapi
 
 import (
@@ -70,6 +70,8 @@ func problemFor(err error) problemSpec {
 		return problemSpec{http.StatusTooManyRequests, "RATE_LIMITED", "Слишком много запросов", 60}
 	case errors.Is(err, domain.ErrDependencyUnavailable):
 		return problemSpec{http.StatusServiceUnavailable, "DEPENDENCY_UNAVAILABLE", "Сервис временно недоступен", 5}
+	case errors.Is(err, domain.ErrDocumentNotRecognized):
+		return problemSpec{http.StatusUnprocessableEntity, "DOCUMENT_NOT_RECOGNIZED", "Реквизиты документа не распознаны", 0}
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
 		return problemSpec{http.StatusServiceUnavailable, "DEPENDENCY_UNAVAILABLE", "Сервис временно недоступен", 1}
 	default:

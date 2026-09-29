@@ -112,11 +112,51 @@ export function messageForError(error: unknown): string {
       return `Слишком много запросов, повторите через ${error.retryAfterSeconds ?? 60} с.`;
     case 'DEPENDENCY_UNAVAILABLE':
       return 'Сервис напоминаний временно недоступен — повторите через минуту.';
+    case 'DOCUMENT_NOT_RECOGNIZED':
+      return 'Реквизиты документа не распознаны — заполните поля вручную.';
     case 'LAUNCH_DATA_EXPIRED':
       return 'Сессия запуска устарела — закройте и снова откройте приложение.';
     case 'LAUNCH_DATA_INVALID':
       return 'Не удалось подтвердить запуск из MAX.';
     default:
       return 'Что-то пошло не так. Повторите попытку.';
+  }
+}
+
+/** Запрос прерван по истечении времени ожидания клиента (run → AbortController). */
+export function isTimeout(error: unknown): boolean {
+  return error instanceof NetworkError && (error.cause as { name?: unknown } | undefined)?.name === 'AbortError';
+}
+
+/**
+ * Сообщение об ошибке языкового ассистента (ADR-033): причина и что делать дальше.
+ * Отказ сервиса и неподходящий документ различаются — у них разные коды ответа.
+ */
+export function assistantErrorMessage(error: unknown, source: 'text' | 'photo' | 'profile'): string {
+  if (isTimeout(error)) {
+    return source === 'photo'
+      ? 'Распознавание фото заняло слишком много времени. Повторите попытку или заполните поля вручную.'
+      : 'Ассистент не ответил вовремя. Повторите попытку или заполните поля вручную.';
+  }
+  if (!(error instanceof ApiError)) {
+    if (source === 'photo' && !(error instanceof NetworkError)) return 'Не удалось открыть фото. Выберите снимок в формате JPEG или PNG.';
+    return messageForError(error);
+  }
+  switch (error.code) {
+    case 'DOCUMENT_NOT_RECOGNIZED':
+      return source === 'photo'
+        ? 'Документ на фото не подходит: не удалось прочитать его название и сроки. Приложите фото лицензии, договора или сертификата — целиком, без бликов и при хорошем освещении.'
+        : 'В тексте не нашлось реквизитов документа. Добавьте название, номер или даты — например, «Лицензия № 78РПА0012345, действует до 13.03.2029».';
+    case 'DEPENDENCY_UNAVAILABLE':
+      return 'Ассистент сейчас недоступен. Заполните поля вручную или повторите позже.';
+    case 'VALIDATION_FAILED':
+      if (source === 'photo') {
+        return error.fields[0]?.code === 'too_long'
+          ? 'Фото слишком большое. Сделайте снимок заново или выберите другой.'
+          : 'Фото не удалось обработать. Выберите снимок в формате JPEG или PNG и повторите.';
+      }
+      return error.fields[0]?.code === 'too_long' ? 'Текст слишком длинный — оставьте только реквизиты.' : messageForError(error);
+    default:
+      return messageForError(error);
   }
 }

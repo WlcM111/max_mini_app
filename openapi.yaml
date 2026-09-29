@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Vovremya Mini App Public API
-  version: 1.2.0
+  version: 1.3.0
   summary: HTTP API сервиса core для мини-приложения «Вовремя» в MAX
   description: |
     Единственный источник истины внешнего HTTP-контракта (владелец — Разработчик B).
@@ -225,6 +225,9 @@ paths:
         Операция ничего не сохраняет: документ создаётся обычным `POST .../documents`
         после подтверждения пользователем. Коды типов проверяются по справочнику,
         даты приводятся к `YYYY-MM-DD`; нераспознанные значения возвращаются пустыми.
+        Даты с явными маркерами в тексте («от», «выдана» — начало, «до», «по» — окончание)
+        дополнительно извлекаются сервером без модели (ADR-033).
+        Если реквизитов в тексте нет — 422 `DOCUMENT_NOT_RECOGNIZED`; при сбое сервиса — 503.
         Доступна, если `assistant_enabled` в `GET /me` равно `true`, иначе 503.
       x-min-role: editor
       requestBody:
@@ -243,6 +246,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unrecognized' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '503': { $ref: '#/components/responses/Unavailable' }
   /organizations/{organizationId}/documents/draft-image:
@@ -253,9 +257,12 @@ paths:
       operationId: draftDocumentImage
       summary: Черновик карточки документа по фотографии
       description: |
-        Фотография документа передаётся ассистенту (GigaChat, ADR-032) для чтения реквизитов
+        Фотография документа передаётся ассистенту (GigaChat, ADR-033) для чтения реквизитов
         и сразу удаляется из хранилища GigaChat; сервис изображение не сохраняет.
-        Ответ — тот же черновик, что у `.../documents/draft`. Изображение JPEG или PNG до 5 МБ.
+        Ответ — тот же черновик, что у `.../documents/draft`. Изображение JPEG или PNG до 5 МБ
+        (edge принимает тело этой операции до 8 МБ). Ожидание ответа — до 3 × `CORE_GIGACHAT_TIMEOUT`.
+        Если на фото нет документа, реквизиты не читаются или модель отказалась обработать
+        изображение — 422 `DOCUMENT_NOT_RECOGNIZED`; при сбое сервиса — 503.
       x-min-role: editor
       requestBody:
         required: true
@@ -279,6 +286,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unrecognized' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '503': { $ref: '#/components/responses/Unavailable' }
   /organizations/{organizationId}/documents:
@@ -687,7 +695,10 @@ paths:
     get:
       tags: [exports]
       operationId: downloadCalendar
-      summary: Скачать ICS по одноразовой ссылке (без Bearer; не более 3 скачиваний за 10 минут)
+      summary: Скачать ICS или реестр .xlsx по временной ссылке (без Bearer; не более 3 скачиваний за 10 минут)
+      description: |
+        Без параметра отдаётся календарь сроков `.ics`. С `format=xlsx` по той же ссылке отдаётся
+        реестр документов в Excel (FR-25, ADR-035); скачивания обоих форматов считаются вместе.
       security: []
       x-min-role: none
       responses:
@@ -700,6 +711,8 @@ paths:
           content:
             text/calendar:
               schema: { type: string }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
         '404': { $ref: '#/components/responses/NotFound' }
         '410':
           description: Ссылка истекла или исчерпана
@@ -826,6 +839,11 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    Unrecognized:
+      description: Реквизиты документа не найдены в тексте или на фото (DOCUMENT_NOT_RECOGNIZED)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
     Uuid:
       type: string
@@ -881,6 +899,7 @@ components:
         - RATE_LIMITED
         - OVERLOADED
         - DEPENDENCY_UNAVAILABLE
+        - DOCUMENT_NOT_RECOGNIZED
         - INTERNAL
     FieldError:
       type: object

@@ -23,6 +23,22 @@
 		-Server
 	}
 
+	# Фото документа для распознавания (FR-23, ADR-033): до 5 МБ в Base64 — больше общего
+	# предела API. Тело буферизуется на edge, чтобы медленная мобильная сеть не упиралась
+	# в срок чтения core. Путь длиннее /api/*, поэтому блок проверяется первым.
+	@draftImage {
+		method POST
+		path /api/v1/organizations/*/documents/draft-image
+	}
+	handle @draftImage {
+		request_body {
+			max_size 8MB
+		}
+		reverse_proxy core:8080 {
+			request_buffers 8MB
+		}
+	}
+
 	handle /api/* {
 		request_body {
 			max_size 256KB

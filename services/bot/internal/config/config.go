@@ -30,7 +30,7 @@ type Config struct {
 	MigrateDatabaseURL string `env:"BOT_MIGRATE_DATABASE_URL"`
 	DBMaxConns         int32  `env:"BOT_DB_MAX_CONNS" envDefault:"8"`
 
-	MaxAPIBaseURL     string        `env:"BOT_MAX_API_BASE_URL" envDefault:"https://platform-api2.max.ru"`
+	MaxAPIBaseURL     string        `env:"BOT_MAX_API_BASE_URL" envDefault:"https://botapi.max.ru"`
 	MaxToken          string        `env:"BOT_MAX_TOKEN"`
 	MaxExtraCAFile    string        `env:"BOT_MAX_EXTRA_CA_FILE" envDefault:"/etc/vovremya/ca/russian_trusted_ca_bundle.pem"`
 	MaxRequestTimeout time.Duration `env:"BOT_MAX_REQUEST_TIMEOUT" envDefault:"10s"`

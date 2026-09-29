@@ -137,7 +137,7 @@ export function DashboardPage() {
   const fab = canEdit ? <Fab icon="plus" label="Добавить документ" onClick={() => navigate(`/o/${orgId}/documents/new`)} /> : null;
   const goToList = (status?: string) =>
     navigate(status ? `/o/${orgId}/documents?status=${status}` : `/o/${orgId}/documents`, { state: { fromHome: true } });
-  const pickTypical = () => navigate('/onboarding/suggestions', { state: { from: 'dashboard' } });
+  const pickTypical = () => navigate(`/o/${orgId}/documents/typical`);
 
   if (organization.isLoading) {
     return (

@@ -444,30 +444,100 @@ select.control__input { padding-right: 42px; overflow: hidden; white-space: nowr
 .control__action:active { background: var(--surface-3); }
 .control__action--accent { color: var(--accent); }
 
-input[type='date'].control__input { display: block; position: relative; text-align: left; cursor: pointer; }
-input[type='date'].control__input::-webkit-date-and-time-value { text-align: left; margin: 0; }
-input[type='date'].control__input::-webkit-calendar-picker-indicator {
-  position: absolute;
-  inset: 0;
-  width: auto;
-  height: auto;
-  margin: 0;
-  opacity: 0;
+/* Выпадающий список в тёмной теме: окно вариантов рисуется системой и без явных цветов светлое. */
+select.control__input option,
+select.control__input optgroup { background-color: var(--surface); color: var(--ink); }
+
+/* ---------- поля даты и времени: открывают собственный выбор в шторке ---------- */
+.control--picker { cursor: pointer; }
+.control--picker .control__input { cursor: pointer; caret-color: transparent; text-overflow: ellipsis; }
+.control--picker[data-disabled='true'],
+.control--picker[data-disabled='true'] .control__input { cursor: default; }
+.control--picker.is-open { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 4px var(--focus); }
+.control__input--time { font-variant-numeric: tabular-nums; font-weight: 600; }
+.control__trail { display: grid; place-items: center; width: 40px; height: 40px; flex: none; margin-right: 5px; color: var(--ink-3); pointer-events: none; }
+.control--picker.is-open .control__trail .icon { transform: rotate(180deg); }
+.control__trail .icon { transition: transform var(--t-med) var(--ease); }
+.control__action:disabled { color: var(--ink-3); opacity: 0.45; }
+
+/* Календарь выбора даты — та же сетка, что у календаря сроков. */
+.picker-sheet { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.picker-sheet__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.picker { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.picker .calendar__title { font-size: 1.0625rem; }
+.picker__title {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.012em;
   cursor: pointer;
 }
-.control--date[data-empty='true'] .control__input:not(:focus) { color: transparent; }
-.control__placeholder {
-  position: absolute;
-  left: 44px;
-  right: 50px;
-  color: var(--ink-3);
-  pointer-events: none;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  transition: opacity var(--t-fast);
+.picker__title .icon { color: var(--ink-3); }
+.picker .calendar__cell { min-height: 44px; }
+.picker button.calendar__cell { background: transparent; }
+.picker button.calendar__cell .calendar__day { font-weight: 500; }
+.picker button.calendar__cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.picker button.calendar__cell:disabled { cursor: default; opacity: 0.35; }
+.picker button.calendar__cell[aria-pressed='true'] { background: var(--accent-fill); }
+.picker button.calendar__cell[aria-pressed='true'] .calendar__day { color: var(--on-accent); font-weight: 700; }
+.picker .icon-btn:disabled { opacity: 0.35; }
+.picker .calendar__foot { padding-top: 6px; }
+.picker__months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 6px 0 4px; animation: vv-rise 260ms var(--ease) both; }
+.picker__month {
+  min-height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease), background-color var(--t-med) var(--ease);
 }
-.control--date:focus-within .control__placeholder { opacity: 0; }
+.picker__month:active:not(:disabled) { transform: scale(0.95); }
+.picker__month.is-current { box-shadow: inset 0 0 0 2px var(--accent); }
+.picker__month[aria-pressed='true'] { background: var(--accent-fill); color: var(--on-accent); box-shadow: none; }
+.picker__month:disabled { cursor: default; opacity: 0.35; }
+@media (hover: hover) {
+  .picker__title:hover,
+  .picker button.calendar__cell:hover:not(:disabled):not([aria-pressed='true']),
+  .picker__month:hover:not(:disabled):not([aria-pressed='true']) { background: var(--surface-3); }
+}
+
+/* Время напоминаний: сетка значений по частям суток. */
+.time-groups { display: flex; flex-direction: column; gap: 16px; }
+.time-group { display: flex; flex-direction: column; gap: 8px; }
+.time-group__title { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+.time-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.time-chip {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease), background-color var(--t-med) var(--ease), border-color var(--t-med);
+}
+.time-chip:active { transform: scale(0.95); }
+.time-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.time-chip[aria-pressed='true'] { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--on-accent); }
+@media (hover: hover) { .time-chip:hover:not([aria-pressed='true']) { background: var(--surface-3); } }
+@media (min-width: 480px) { .time-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 
 /* ---------- переключатель ---------- */
 .switch { position: relative; display: inline-flex; flex: none; width: 52px; height: 32px; }

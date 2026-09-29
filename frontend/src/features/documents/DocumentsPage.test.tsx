@@ -73,5 +73,13 @@ describe('T-FE-PAGE, T-FE-STATE: реестр документов', () => {
     renderWithProviders(<DocumentsPage />, { route, path, me: viewer });
     await screen.findByText('Лицензия на алкоголь');
     expect(screen.queryByRole('button', { name: 'Добавить документ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Подобрать типовые документы' })).not.toBeInTheDocument();
+  });
+
+  it('редактору предлагает подобрать типовые документы и импорт из Excel (FR-27)', async () => {
+    renderWithProviders(<DocumentsPage />, { route, path });
+    await screen.findByText('Лицензия на алкоголь');
+    expect(screen.getByRole('button', { name: 'Подобрать типовые документы' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Импорт из Excel' })).toBeInTheDocument();
   });
 });

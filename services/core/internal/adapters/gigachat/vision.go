@@ -20,9 +20,13 @@ import (
 const visionTimeout = 40 * time.Second
 
 const visionSystemPrompt = "На фотографии — документ организации: лицензия, договор, сертификат, удостоверение и т. п. " +
-	"Извлеки его реквизиты. Отвечай только JSON по заданной схеме. Бери значения исключительно с изображения: " +
+	"Извлеки его реквизиты. Отвечай только объектом JSON с ключами title, number, issuer, valid_from, valid_until, " +
+	"document_type_code, confidence — без пояснений и обрамления. Бери значения исключительно с изображения: " +
 	"ничего не додумывай. Если значения нет или его не видно — верни пустую строку. Даты приводи к формату YYYY-MM-DD. " +
+	"valid_from — дата начала действия или, если её нет, дата выдачи; valid_until — дата окончания срока действия, " +
+	"не вычисляй её. Персональные данные людей (ФИО, паспорт, адрес) не переписывай. " +
 	"Поле document_type_code выбирай только из перечисленных кодов и только если документ явно относится к этому типу. " +
+	"Если на фото нет документа или реквизиты не читаются — верни пустые строки и confidence 0. " +
 	"В поле confidence верни число от 0 до 1 — насколько уверенно реквизиты прочитаны."
 
 type visionMessage struct {
@@ -73,10 +77,10 @@ func (c *Client) DraftDocumentFromImage(ctx context.Context, image []byte, mimeT
 		return ports.DocumentDraft{}, err
 	}
 	content, usage, err := c.visionComplete(ctx, token, payload)
+	c.addUsage("draft_document_image", usage)
 	if err != nil {
 		return ports.DocumentDraft{}, err
 	}
-	c.addUsage("draft_document_image", usage)
 	var parsed struct {
 		Title            string  `json:"title"`
 		Number           string  `json:"number"`
@@ -212,9 +216,5 @@ func (c *Client) visionComplete(ctx context.Context, token string, payload []byt
 		}
 		return "", 0, fmt.Errorf("gigachat: распознавание фото: статус %d", resp.StatusCode)
 	}
-	var parsed chatResponse
-	if err := json.Unmarshal(body, &parsed); err != nil || len(parsed.Choices) == 0 {
-		return "", 0, ErrBadResponse
-	}
-	return parsed.Choices[0].Message.Content, parsed.Usage.TotalTokens, nil
+	return parseChatResponse(body)
 }

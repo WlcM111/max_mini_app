@@ -17,6 +17,8 @@
 | deleteOrganization | DELETE /organizations/{organizationId} | owner | 204 | 401, 403, 404 |
 | listSuggestions | GET /organizations/{organizationId}/suggestions | viewer | 200 | 401, 403, 404 |
 | listDocuments | GET /organizations/{organizationId}/documents | viewer | 200 | 400, 401, 403, 404 |
+| draftDocument | POST /organizations/{organizationId}/documents/draft | editor | 200 | 400, 401, 403, 404, 422 (DOCUMENT_NOT_RECOGNIZED), 429, 503 |
+| draftDocumentImage | POST /organizations/{organizationId}/documents/draft-image | editor | 200 | 400, 401, 403, 404, 422 (DOCUMENT_NOT_RECOGNIZED), 429, 503 |
 | createDocument | POST /organizations/{organizationId}/documents | editor | 201, 200 | 400, 401, 403, 404, 409 |
 | createDocumentsBatch | POST /organizations/{organizationId}/documents/batch | editor | 201 | 400, 401, 403, 404, 409 |
 | getDocument | GET /documents/{documentId} | viewer | 200 | 401, 403, 404 |
@@ -34,7 +36,8 @@
 | previewInvite | POST /invites/preview | любой | 200 | 400, 401, 404, 409, 429 |
 | acceptInvite | POST /invites/accept | любой | 200 | 400, 401, 404, 409, 429 |
 | createCalendarExport | POST /organizations/{organizationId}/exports/calendar | viewer | 201 | 401, 403, 404, 429 |
-| downloadCalendar | GET /downloads/{downloadToken} | без токена | 200 `text/calendar` | 404, 410 (LINK_GONE) |
+| downloadCalendar | GET /downloads/{downloadToken} | без токена | 200 `text/calendar`; с `?format=xlsx` — реестр `.xlsx` | 404, 410 (LINK_GONE) |
+| matchProfile | POST /profile-match | любой | 200 | 400, 401, 429, 503 |
 | postClientEvents | POST /client-events | без токена или любой | 202 | 400, 429 |
 
 Не участник организации получает 404 (существование чужих ресурсов не раскрывается); участник с недостаточной ролью — 403.
@@ -58,10 +61,11 @@
 | LINK_GONE | 410 | ссылка экспорта истекла или исчерпана |
 | RATE_LIMITED | 429 | превышен лимит частоты; заголовок `Retry-After` |
 | OVERLOADED | 503 | превышен предел одновременных запросов; `Retry-After: 1` |
-| DEPENDENCY_UNAVAILABLE | 503 | bot не ответил, а операция без него невозможна |
+| DEPENDENCY_UNAVAILABLE | 503 | bot не ответил, а операция без него невозможна; языковой ассистент выключен, недоступен или исчерпал суточный бюджет |
+| DOCUMENT_NOT_RECOGNIZED | 422 | в тексте или на фото нет реквизитов документа либо модель отказалась обработать снимок (ADR-033) |
 | INTERNAL | 500 | непредвиденная ошибка; детали только в логах по `request_id` |
 
-Поле `type` — `urn:vovremya:problem:<code в нижнем регистре через дефис>`, например `urn:vovremya:problem:conflict-version`. Ответ 413 при теле больше 256 KB формирует edge без problem+json.
+Поле `type` — `urn:vovremya:problem:<code в нижнем регистре через дефис>`, например `urn:vovremya:problem:conflict-version`. Ответ 413 при теле больше 256 KB формирует edge без problem+json; для `draftDocumentImage` предел edge — 8 МБ, core принимает изображение до 5 МБ (ADR-033).
 
 ## 3. Правила
 

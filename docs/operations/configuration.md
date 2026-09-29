@@ -40,7 +40,7 @@
 | `CORE_PUBLIC_BASE_URL` | обязательна | нет | базовый адрес ссылок скачивания ICS |
 | `CORE_TRUSTED_PROXY_CIDRS` | `10.77.1.0/24` | нет | от кого принимать `X-Forwarded-For` |
 | `CORE_HTTP_MAX_INFLIGHT` | `256` | нет | предел одновременных запросов |
-| `CORE_HANDLER_TIMEOUT` | `5s` | нет | бюджет обработчика |
+| `CORE_HANDLER_TIMEOUT` | `5s` | нет | бюджет обработчика; операциям ассистента он расширяется: текст и профиль — `CORE_GIGACHAT_TIMEOUT` + 5 с, фото — 3 × `CORE_GIGACHAT_TIMEOUT` + 5 с (ADR-033) |
 | `CORE_RATE_ACCOUNT_RPS`, `CORE_RATE_ACCOUNT_BURST` | `10`, `30` | нет | лимит на аккаунт |
 | `CORE_RATE_SESSION_PER_USER_MIN`, `CORE_RATE_SESSION_PER_IP_MIN` | `10`, `300` | нет | лимиты `POST /sessions` |
 | `CORE_SCHEDULER_INTERVAL`, `CORE_SCHEDULER_BATCH`, `CORE_SCHEDULER_LEASE` | `15s`, `200`, `2m` | нет | планировщик напоминаний |
@@ -55,7 +55,7 @@
 | `CORE_GIGACHAT_BASE_URL` | `https://gigachat.devices.sberbank.ru/api/v1` | нет | адрес API; в prod только https |
 | `CORE_GIGACHAT_OAUTH_URL` | `https://ngw.devices.sberbank.ru:9443/api/v2/oauth` | нет | выдача токена доступа (живёт 30 минут) |
 | `CORE_GIGACHAT_CA_FILE` | `/etc/vovremya/ca/russian_trusted_ca_bundle.pem` | нет | бандл НУЦ Минцифры для TLS с доменами Сбера |
-| `CORE_GIGACHAT_TIMEOUT` | `8s` | нет | предел ожидания ответа модели |
+| `CORE_GIGACHAT_TIMEOUT` | `8s` | нет | предел ожидания ответа модели; распознавание фото — до трёх таких интервалов |
 | `CORE_GIGACHAT_MAX_INPUT_CHARS` | `2000` | нет | предел длины текста пользователя |
 | `CORE_GIGACHAT_DAILY_TOKEN_BUDGET` | `200000` | нет | суточный бюджет токенов; 0 — без ограничения |
 | `CORE_RATE_ASSISTANT_PER_MIN` | `10` | нет | обращений к ассистенту в минуту на аккаунт |
@@ -68,13 +68,13 @@
 | `BOT_HTTP_ADDR`, `BOT_ADMIN_ADDR`, `BOT_GRPC_ADDR` | `:8080`, `:8081`, `:9090` | нет | webhook, admin, gRPC |
 | `BOT_DATABASE_URL`, `BOT_MIGRATE_DATABASE_URL` | обязательны | да | DSN `bot_app`, `bot_migrator` |
 | `BOT_DB_MAX_CONNS` | `8` | нет | размер пула |
-| `BOT_MAX_API_BASE_URL` | `https://platform-api2.max.ru` | нет | Bot API |
+| `BOT_MAX_API_BASE_URL` | `https://botapi.max.ru` | нет | Bot API (на боевом стенде — этот адрес, на нём зарегистрирована подписка на webhook) |
 | `BOT_MAX_TOKEN` | обязательна при `live` | да | токен бота (compose берёт из `MAX_BOT_TOKEN`) |
 | `BOT_MAX_EXTRA_CA_FILE` | `/etc/vovremya/ca/russian_trusted_ca_bundle.pem` | нет | сертификаты Минцифры |
 | `BOT_MAX_REQUEST_TIMEOUT` | `10s` | нет | таймаут вызова MAX |
 | `BOT_WEBHOOK_PUBLIC_URL` | обязательна при `live` | нет | `https://<домен>/max/webhook` |
 | `BOT_WEBHOOK_SECRET` | обязательна | да | 5–256 символов `[A-Za-z0-9_-]`, в prod — 64 |
-| `BOT_WEBHOOK_UPDATE_TYPES` | `bot_started,bot_stopped,dialog_removed,dialog_muted,dialog_unmuted,message_created` | нет | подписка |
+| `BOT_WEBHOOK_UPDATE_TYPES` | `bot_started,bot_stopped,dialog_removed,dialog_muted,dialog_unmuted,message_created,message_callback` | нет | подписка; `message_callback` нужен кнопке «Напомнить через неделю» (ADR-036) |
 | `BOT_SUBSCRIPTION_CHECK_INTERVAL` | `10m` | нет | проверка подписки |
 | `BOT_GLOBAL_RPS` | `20` | нет | лимит вызовов Bot API (официальный предел 30) |
 | `BOT_PER_RECIPIENT_INTERVAL` | `600ms` | нет | пауза между сообщениями одному получателю |

@@ -6,10 +6,10 @@ import { messageForError } from '../../api/errors';
 import { AppShell } from '../../shared/ui/AppShell';
 import { Button } from '../../shared/ui/Button';
 import { ConfirmDialog } from '../../shared/ui/ConfirmDialog';
-import { SelectField } from '../../shared/ui/Field';
 import { NavRow } from '../../shared/ui/Rows';
 import { ErrorView, LoadingView } from '../../shared/ui/StateViews';
 import { ToggleRow } from '../../shared/ui/Switch';
+import { TimeField } from '../../shared/ui/TimeField';
 import { toast } from '../../shared/ui/Toast';
 import { cx } from '../../shared/lib/cx';
 import { timezoneLabel } from '../../shared/lib/format';
@@ -151,17 +151,18 @@ export function SettingsPage() {
             }}
           />
           <div className="group__field">
-            <SelectField
+            <TimeField
               id="notify-time"
               label="Время напоминаний"
               hint={`Часовой пояс: ${timezoneLabel(organization.data.timezone)}`}
+              pickerDescription="В это время придут напоминания о сроках и сводка по понедельникам."
               value={localTime}
+              options={notifyTimeOptions()}
               disabled={!enabled || save.isPending}
               onChange={(value) => {
                 setLocalTime(value);
                 applySettings({ enabled, local_time: value });
               }}
-              options={notifyTimeOptions().map((option) => ({ value: option, label: option }))}
             />
           </div>
           <div className={cx('channel', channelWarn && 'channel--warn')}>
