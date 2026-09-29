@@ -301,6 +301,10 @@ func TestProfileSubscriptionsAndCommands(t *testing.T) {
 	if err != nil || len(urls) != 1 || urls[0] != "https://vovremya.example/max/webhook" {
 		t.Fatalf("подписки: %v %v", urls, err)
 	}
+	subTypes, err := client.SubscriptionTypes(ctx)
+	if got := subTypes["https://vovremya.example/max/webhook"]; err != nil || len(got) != 1 || got[0] != "bot_started" {
+		t.Fatalf("типы событий подписок: %v %v", subTypes, err)
+	}
 
 	fake.response = `{"success":true}`
 	if err := client.Subscribe(ctx, "https://vovremya.example/max/webhook", domain.SubscribedUpdateTypes, "secret-value"); err != nil {

@@ -17,7 +17,7 @@ COPY deploy/ca /ca
 # меньше двух корректных заголовков.
 RUN awk '{sub(/\r$/,""); print}' /ca/russian_trusted_root_ca.pem /ca/russian_trusted_sub_ca.pem \
         > /out/russian_trusted_ca_bundle.pem \
-    && [ "$(grep -c '^-----BEGIN CERTIFICATE-----$' /out/russian_trusted_ca_bundle.pem)" -ge 1 ]
+    && [ "$(grep -c '^-----BEGIN CERTIFICATE-----$' /out/russian_trusted_ca_bundle.pem)" -ge 2 ]
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 10001 app

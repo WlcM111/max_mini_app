@@ -10,7 +10,8 @@ RUN go mod download
 COPY gen ./gen
 COPY internal ./internal
 COPY services/reminders ./services/reminders
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.version=${APP_VERSION:-dev}" \
+ARG VERSION=dev
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
     -o /out/reminders ./services/reminders/cmd/reminders
 
 FROM alpine:3.22 AS runtime

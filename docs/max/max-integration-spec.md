@@ -212,7 +212,7 @@ Content-Type: application/json
 6. Проверить в логах bot сообщения `bot profile loaded` и `webhook subscription ensured`.
 7. В настройках бота указать URL мини-приложения `https://<домен>/` и вид кнопки «Открыть».
 8. Написать боту `/start`: пришло приветствие с кнопкой; нажать кнопку: открылось мини-приложение; пройти критерии раздела 16.
-9. Выпустить токены проверяющих: `docker compose exec core /app/core review-token issue --login reviewer_editor --role editor --ttl 336h` и то же для `reviewer_viewer` с ролью `viewer` (ADR-016).
+9. Выпустить токены проверяющих: `docker compose exec core /app/core review-token issue --login reviewer_editor --role editor --ttl 720h` и то же для `reviewer_viewer` с ролью `viewer` (ADR-016).
 
 ## 14. Безопасность интеграции
 

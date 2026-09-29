@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Выполняет проверки из DATA-API.yaml. Требует PyYAML.
 Токены: VV_TOKEN_EDITOR, VV_TOKEN_VIEWER; базовый адрес можно переопределить VV_BASE_URL.
-capture сохраняет значение из ответа для следующих проверок, signature сверяет первые байты файла."""
+capture сохраняет значение из ответа для следующих проверок, signature сверяет первые байты файла.
+Выполняются обязательные проверки (checks), затем дополнительные (additional_checks)."""
 import json, os, re, sys, urllib.error, urllib.parse, urllib.request
 import yaml
 
@@ -23,13 +24,14 @@ def has(obj, dotted):
 
 
 failed = 0
-for c in cfg["checks"]:
+checks = [(c, "") for c in cfg["checks"]] + [(c, "доп. ") for c in cfg.get("additional_checks") or []]
+for c, label in checks:
     p = c.get("params") or {}
     try:
         path = c["path"].format(**fx)
     except KeyError as missing:
         failed += 1
-        print(f"FAIL {c['id']}: нет значения {missing} из предыдущей проверки")
+        print(f"FAIL {label}{c['id']}: нет значения {missing} из предыдущей проверки")
         continue
     q = p.get("query") or {}
     url = base + path + ("?" + urllib.parse.urlencode(q) if q else "")
@@ -66,5 +68,5 @@ for c in cfg["checks"]:
         else:
             ok = False
     failed += 0 if ok else 1
-    print(f"{'PASS' if ok else 'FAIL'} {c['id']} {c['method']} {path} -> {status} {ctype}")
+    print(f"{'PASS' if ok else 'FAIL'} {label}{c['id']} {c['method']} {path} -> {status} {ctype}")
 sys.exit(1 if failed else 0)

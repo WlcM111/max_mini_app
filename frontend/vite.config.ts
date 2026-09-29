@@ -19,7 +19,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: { '/api': { target: 'http://localhost:8085', changeOrigin: true } },
+    proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: true } },
   },
   test: {
     environment: 'jsdom',

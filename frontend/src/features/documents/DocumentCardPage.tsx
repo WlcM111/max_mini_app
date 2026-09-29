@@ -19,7 +19,8 @@ import { formatDate, formatDateTime, todayInTimeZone } from '../../shared/lib/da
 import { DAY_FORMS, heroCount, periodProgress } from '../../shared/lib/format';
 import { pluralWithCount } from '../../shared/lib/plural';
 import { openExternal } from '../../platform/max/links';
-import { roleAllows, useRole } from '../../session/useSession';
+import { getLastOrganization } from '../../session/sessionStore';
+import { roleAllows, useRole, useSession } from '../../session/useSession';
 import { getCatalog, getOrganization } from '../organizations/api';
 import { deleteDocument, getDocument } from './api';
 import { useMemberNames } from '../members/useMemberNames';
@@ -64,6 +65,7 @@ export function DocumentCardPage() {
   const { docId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { me } = useSession();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [checklist, setChecklist] = useState<number[]>([]);
 
@@ -129,6 +131,11 @@ export function DocumentCardPage() {
 
   if (documentQuery.isError || !documentQuery.data) {
     const notFound = documentQuery.error instanceof ApiError && documentQuery.error.status === 404;
+    // Карточка могла открыться диплинком без истории: список — по адресу, а не шаг назад.
+    const lastOrganization = getLastOrganization();
+    const listOrganization =
+      me.memberships.find((item) => item.organization_id === lastOrganization)?.organization_id ??
+      me.memberships[0]?.organization_id;
     return (
       <AppShell title="Документ">
         <ErrorView
@@ -136,7 +143,10 @@ export function DocumentCardPage() {
           title={notFound ? 'Документ удалён или недоступен' : undefined}
           onRetry={notFound ? undefined : () => void documentQuery.refetch()}
           action={
-            <Button variant="neutral" onClick={() => navigate(-1)}>
+            <Button
+              variant="neutral"
+              onClick={() => navigate(listOrganization ? `/o/${listOrganization}/documents` : '/', { replace: true })}
+            >
               К списку
             </Button>
           }

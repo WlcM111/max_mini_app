@@ -89,11 +89,16 @@ func (r *MessageRepo) Insert(ctx context.Context, n domain.Notification) (domain
 	const q = `INSERT INTO bot.outbound_messages
 		(idempotency_key, request_hash, kind, recipient_max_user_id, text, silent, status,
 		 attempts, next_attempt_at, not_after, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, 'queued', 0, $7, $8, $7, $7)
+		VALUES ($1, $2, $3, $4, $5, $6, 'queued', 0, $7, $8, $9, $9)
 		ON CONFLICT (idempotency_key) DO NOTHING
 		RETURNING ` + messageColumns
+	// Отложенная копия создаётся сейчас, а отправляется через неделю.
+	createdAt := n.CreatedAt
+	if createdAt.IsZero() {
+		createdAt = n.NextAttemptAt
+	}
 	stored, err := scanMessage(r.db(ctx).QueryRow(ctx, q, n.IdempotencyKey, n.RequestHash, string(n.Kind),
-		n.RecipientMaxUserID, n.Text, n.Silent, n.NextAttemptAt, n.NotAfter).Scan)
+		n.RecipientMaxUserID, n.Text, n.Silent, n.NextAttemptAt, n.NotAfter, createdAt).Scan)
 	r.observe("messages.insert", started)
 	if err != nil {
 		if err = notFound(err); err == domain.ErrNotFound {

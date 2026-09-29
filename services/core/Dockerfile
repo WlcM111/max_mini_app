@@ -15,10 +15,11 @@ COPY deploy/ca /ca
 # Бандл НУЦ Минцифры нужен для TLS с доменами GigaChat API (ADR-032).
 # awk снимает CR и завершает каждый файл переводом строки: при простой склейке
 # строки -----END CERTIFICATE----- и -----BEGIN CERTIFICATE----- слипаются,
-# и Go не разбирает ни один сертификат.
+# и Go не разбирает ни один сертификат. Проверка ниже обрывает сборку, если в бандле
+# меньше двух корректных заголовков (корневой и выпускающий сертификаты).
 RUN awk '{sub(/\r$/,""); print}' /ca/russian_trusted_root_ca.pem /ca/russian_trusted_sub_ca.pem \
         > /out/russian_trusted_ca_bundle.pem \
-    && [ "$(grep -c '^-----BEGIN CERTIFICATE-----$' /out/russian_trusted_ca_bundle.pem)" -ge 1 ]
+    && [ "$(grep -c '^-----BEGIN CERTIFICATE-----$' /out/russian_trusted_ca_bundle.pem)" -ge 2 ]
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 10001 app

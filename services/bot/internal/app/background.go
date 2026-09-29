@@ -12,6 +12,7 @@ import (
 // SubscriptionKeeper поддерживает подписку webhook (spec §9, только режим live):
 // при старте и каждые Interval проверяет наличие подписки на публичный URL и
 // создаёт её при отсутствии; при ошибке повторяет через RetryInterval.
+// Подписку без нужных типов событий (например, message_callback) оформляет заново.
 type SubscriptionKeeper struct {
 	client        ports.MaxClient
 	url           string
@@ -30,21 +31,24 @@ func NewSubscriptionKeeper(client ports.MaxClient, url string, updateTypes []str
 		log: log, metrics: m, Interval: interval, RetryInterval: 30 * time.Second}
 }
 
-// EnsureOnce проверяет и при необходимости создаёт подписку.
+// subscriptionTypesReader — клиент MAX, который сообщает типы событий подписок.
+type subscriptionTypesReader interface {
+	SubscriptionTypes(ctx context.Context) (map[string][]string, error)
+}
+
+// EnsureOnce проверяет и при необходимости создаёт или обновляет подписку.
 func (k *SubscriptionKeeper) EnsureOnce(ctx context.Context) error {
-	urls, err := k.client.ListSubscriptions(ctx)
+	subs, err := k.subscriptions(ctx)
 	if err != nil {
 		k.metrics.SubscriptionOK.Set(0)
 		return err
 	}
-	found := false
-	for _, u := range urls {
-		if u == k.url {
-			found = true
-			continue
+	have, found := subs[k.url]
+	for u := range subs {
+		if u != k.url {
+			// Лишние подписки не удаляются: параметры DELETE /subscriptions не проверены (spec §9).
+			k.log.Warn("foreign webhook subscription left untouched", slog.String("url", u))
 		}
-		// Лишние подписки не удаляются: параметры DELETE /subscriptions не проверены (spec §9).
-		k.log.Warn("foreign webhook subscription left untouched", slog.String("url", u))
 	}
 	if !found {
 		if err := k.client.Subscribe(ctx, k.url, k.updateTypes, k.secret); err != nil {
@@ -52,10 +56,53 @@ func (k *SubscriptionKeeper) EnsureOnce(ctx context.Context) error {
 			return err
 		}
 		k.log.Info("webhook subscription created", slog.String("url", k.url))
+	} else if missing := missingTypes(have, k.updateTypes); len(missing) > 0 {
+		// Подписка со старым списком событий продолжает работать: сбой обновления не ошибка.
+		if err := k.client.Subscribe(ctx, k.url, k.updateTypes, k.secret); err != nil {
+			k.log.Warn("webhook subscription update failed",
+				slog.Any("missing_update_types", missing), slog.Any("error", err))
+		} else {
+			k.log.Info("webhook subscription updated", slog.Any("added_update_types", missing))
+		}
 	}
 	k.metrics.SubscriptionOK.Set(1)
 	k.log.Info("webhook subscription ensured")
 	return nil
+}
+
+// subscriptions возвращает активные подписки: URL → типы событий (nil — список неизвестен).
+func (k *SubscriptionKeeper) subscriptions(ctx context.Context) (map[string][]string, error) {
+	if r, ok := k.client.(subscriptionTypesReader); ok {
+		return r.SubscriptionTypes(ctx)
+	}
+	urls, err := k.client.ListSubscriptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]string, len(urls))
+	for _, u := range urls {
+		out[u] = nil
+	}
+	return out, nil
+}
+
+// missingTypes возвращает нужные типы событий, которых нет в подписке.
+// Пустой список в ответе MAX означает подписку на все события.
+func missingTypes(have, want []string) []string {
+	if len(have) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(have))
+	for _, t := range have {
+		set[t] = true
+	}
+	var missing []string
+	for _, t := range want {
+		if !set[t] {
+			missing = append(missing, t)
+		}
+	}
+	return missing
 }
 
 // Run поддерживает подписку до остановки.

@@ -13,7 +13,7 @@
 | Повторный запуск | `docker compose up -d` | данные на месте |
 | Полный сброс данных | `docker compose down -v` | удалены тома, следующая команда запуска создаст БД заново |
 | Демо-данные | `docker compose exec core /app/core seed-demo` | создана «Кафе «Пример» (тестовые данные)» |
-| Токен проверяющего | `docker compose exec core /app/core review-token issue --login reviewer_editor --role editor --ttl 336h` | в выводе строка `vvs_…` (показывается один раз) |
+| Токен проверяющего | `docker compose exec core /app/core review-token issue --login reviewer_editor --role editor --ttl 720h` | в выводе строка `vvs_…` (показывается один раз) |
 | Мониторинг | `docker compose --profile monitoring up -d prometheus` | `http://127.0.0.1:9091` |
 
 Простыми словами: «том» — это папка Docker, где PostgreSQL хранит данные; `down` её не трогает, а `down -v` удаляет.

@@ -64,7 +64,8 @@ type meResult struct {
 // subscriptionList — ответ GET /subscriptions (F-47).
 type subscriptionList struct {
 	Subscriptions []struct {
-		URL string `json:"url"`
+		URL         string   `json:"url"`
+		UpdateTypes []string `json:"update_types"`
 	} `json:"subscriptions"`
 }
 

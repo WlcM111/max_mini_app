@@ -92,10 +92,26 @@ export interface ImportRow {
   indefinite: boolean;
   errors: string[];
   body: DocumentCreate | null;
+  /** Документ с таким названием уже есть в реестре (строка не блокируется). */
+  duplicate?: boolean;
 }
 
-/** Строки файла → документы с проверкой теми же правилами, что и форма. */
-export function buildRows(rows: string[][], mapping: Mapping, hasHeader: boolean, offsets: number[] = [30, 7, 1]): ImportRow[] {
+/** Название для сравнения: без регистра и лишних пробелов. */
+export function normalizeTitle(title: string): string {
+  return title.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Строки файла → документы с проверкой теми же правилами, что и форма.
+ * existing — нормализованные названия документов реестра (normalizeTitle).
+ */
+export function buildRows(
+  rows: string[][],
+  mapping: Mapping,
+  hasHeader: boolean,
+  offsets: number[] = [30, 7, 1],
+  existing: ReadonlySet<string> = new Set(),
+): ImportRow[] {
   const data = hasHeader ? rows.slice(1) : rows;
   const seen = new Set<string>();
   return data.map((cells, index) => {
@@ -132,6 +148,7 @@ export function buildRows(rows: string[][], mapping: Mapping, hasHeader: boolean
       indefinite: form.indefinite,
       errors: [...new Set(errors)],
       body: errors.length === 0 ? toCreateBody(uuidV4(), form) : null,
+      duplicate: form.title !== '' && existing.has(normalizeTitle(form.title)),
     };
   });
 }

@@ -9,6 +9,8 @@ export interface SessionState {
   expiresAt: string;
   account: Account;
   start: StartTarget;
+  /** Отпечаток запуска MAX, для которого выдана сессия (см. launchKeyOf). */
+  launchKey?: string;
 }
 
 export interface LaunchContext {
@@ -43,9 +45,15 @@ export function getToken(): string | null {
   return Date.parse(state.expiresAt) > Date.now() ? state.token : null;
 }
 
+/** Отпечаток запуска — подпись hash из initData: у каждого открытия из MAX своя. */
+export function launchKeyOf(initData: string): string {
+  const hash = initData.split('&').find((part) => part.startsWith('hash='));
+  return hash ? hash.slice('hash='.length) : initData;
+}
+
 export function setSession(value: SessionState): void {
-  state = value;
-  writeStorage('session', SESSION_KEY, JSON.stringify(value));
+  state = launch ? { ...value, launchKey: launchKeyOf(launch.initData) } : value;
+  writeStorage('session', SESSION_KEY, JSON.stringify(state));
   notify();
 }
 
@@ -55,7 +63,10 @@ export function clearSession(): void {
   notify();
 }
 
-/** Восстанавливает неистёкшую сессию после перезагрузки страницы. */
+/**
+ * Восстанавливает неистёкшую сессию после перезагрузки страницы. Сессия другого запуска
+ * не восстанавливается: у нового открытия из MAX своя цель (документ, приглашение).
+ */
 export function restoreSession(): SessionState | null {
   const raw = readStorage('session', SESSION_KEY);
   if (!raw) return null;
@@ -65,6 +76,7 @@ export function restoreSession(): SessionState | null {
       removeStorage('session', SESSION_KEY);
       return null;
     }
+    if (launch && parsed.launchKey !== launchKeyOf(launch.initData)) return null;
     state = parsed;
     notify();
     return parsed;

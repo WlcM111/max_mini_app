@@ -24,6 +24,7 @@ func (s *WebhookService) UseCallbackAnswers(client any) {
 // Повторная доставка того же события безопасна: ключ копии включает день нажатия.
 func (s *WebhookService) snooze(ctx context.Context, in InboundUpdate) {
 	key := strings.TrimPrefix(in.CallbackPayload, domain.SnoozePayloadPrefix)
+	now := s.clock.Now()
 	answer := "Напомню через неделю"
 	original, err := s.messages.GetByKey(ctx, key)
 	switch {
@@ -31,8 +32,17 @@ func (s *WebhookService) snooze(ctx context.Context, in InboundUpdate) {
 		answer = "Не получилось отложить — откройте документ в приложении"
 	case in.Update.MaxUserID != 0 && original.RecipientMaxUserID != in.Update.MaxUserID:
 		answer = "Это напоминание адресовано другому пользователю"
+	case !original.SnoozeAllowed(now):
+		answer = "До окончания срока меньше недели — продлите документ в приложении"
 	default:
-		if _, inserted, insErr := s.messages.Insert(ctx, original.SnoozedCopy(s.clock.Now())); insErr != nil {
+		// Сообщение и его кнопки записываются одной транзакцией.
+		var inserted bool
+		insErr := s.tx.WithinTx(ctx, func(ctx context.Context) error {
+			var txErr error
+			_, inserted, txErr = s.messages.Insert(ctx, original.SnoozedCopy(now))
+			return txErr
+		})
+		if insErr != nil {
 			answer = "Не получилось отложить — попробуйте ещё раз"
 			s.log.Warn("snooze insert failed", slog.Any("error", insErr))
 		} else if !inserted {

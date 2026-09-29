@@ -1,6 +1,8 @@
 # Проверки собственного API решения «Вовремя». Схема файла — пункты 1–9 раздела «Для решений с собственным API» кейса.
-# Служебные поля для scripts/run_data_api_checks.py: capture — значение из ответа для следующих проверок
-# (подставляется в path), response.signature — первые байты файла в ответе.
+# Обязательные проверки — checks; additional_checks — дополнительные (см. комментарий перед разделом).
+# Имена параметров пути совпадают с openapi.yaml. Служебные поля для scripts/run_data_api_checks.py:
+# capture — значение из ответа для следующих проверок (подставляется в path),
+# response.signature — первые байты файла в ответе.
 schema_version: "1.0"                       # 1. версия конфигурации
 solution:                                   # 2. наименование решения и команда
   name: "Вовремя"
@@ -14,8 +16,8 @@ auth:
     viewer: "токен учётной записи reviewer_viewer (первый слайд презентации)"
     anonymous: "без заголовка Authorization"
 fixtures:                                   # тестовые данные seed-demo (demo/demo-data.json)
-  organization_id: "0b6f2c1e-5a3d-4c8e-9f21-7d4a6b8c9e01"
-  document_id: "3c9e7a52-1f4b-4d6a-8e2c-5b7f9a1d3e02"
+  organizationId: "0b6f2c1e-5a3d-4c8e-9f21-7d4a6b8c9e01"
+  documentId: "3c9e7a52-1f4b-4d6a-8e2c-5b7f9a1d3e02"
 checks:                                     # 4. обязательные проверки основной функциональности
   - id: me
     description: Профиль и членства текущего пользователя
@@ -42,8 +44,8 @@ checks:                                     # 4. обязательные про
   - id: organization
     description: Организация со сводкой по статусам сроков
     method: GET
-    path: /organizations/{organization_id}
-    params: {path: {organization_id: fixture}, query: {}, headers: {}, body: null}
+    path: /organizations/{organizationId}
+    params: {path: {organizationId: fixture}, query: {}, headers: {}, body: null}
     role: viewer
     expected_status: [200]
     response:
@@ -53,8 +55,8 @@ checks:                                     # 4. обязательные про
   - id: suggestions
     description: Подбор типовых документов по профилю
     method: GET
-    path: /organizations/{organization_id}/suggestions
-    params: {path: {organization_id: fixture}, query: {}, headers: {}, body: null}
+    path: /organizations/{organizationId}/suggestions
+    params: {path: {organizationId: fixture}, query: {}, headers: {}, body: null}
     role: viewer
     expected_status: [200]
     response:
@@ -64,8 +66,8 @@ checks:                                     # 4. обязательные про
   - id: documents-expiring
     description: Реестр документов, фильтр «скоро истекает»
     method: GET
-    path: /organizations/{organization_id}/documents
-    params: {path: {organization_id: fixture}, query: {status: expiring, limit: "20"}, headers: {}, body: null}
+    path: /organizations/{organizationId}/documents
+    params: {path: {organizationId: fixture}, query: {status: expiring, limit: "20"}, headers: {}, body: null}
     role: viewer
     expected_status: [200]
     response:
@@ -75,8 +77,8 @@ checks:                                     # 4. обязательные про
   - id: document
     description: Карточка документа
     method: GET
-    path: /documents/{document_id}
-    params: {path: {document_id: fixture}, query: {}, headers: {}, body: null}
+    path: /documents/{documentId}
+    params: {path: {documentId: fixture}, query: {}, headers: {}, body: null}
     role: viewer
     expected_status: [200]
     response:
@@ -86,9 +88,9 @@ checks:                                     # 4. обязательные про
   - id: document-create
     description: Создание документа (повтор с тем же id даёт 200)
     method: POST
-    path: /organizations/{organization_id}/documents
+    path: /organizations/{organizationId}/documents
     params:
-      path: {organization_id: fixture}
+      path: {organizationId: fixture}
       query: {}
       headers: {Content-Type: application/json}
       body: {id: "9d7c6b5a-4e3f-4a2b-8c1d-0e9f8a7b6c51", title: "Проверочный документ (тестовые данные)", valid_until: "2027-01-31", reminder_offsets_days: [30, 7]}
@@ -101,9 +103,9 @@ checks:                                     # 4. обязательные про
   - id: document-create-forbidden
     description: Роль viewer не может создавать документы
     method: POST
-    path: /organizations/{organization_id}/documents
+    path: /organizations/{organizationId}/documents
     params:
-      path: {organization_id: fixture}
+      path: {organizationId: fixture}
       query: {}
       headers: {Content-Type: application/json}
       body: {id: "1a2b3c4d-5e6f-4a1b-9c2d-3e4f5a6b7c81", title: "Не должен создаться", valid_until: "2027-01-31"}
@@ -124,12 +126,46 @@ checks:                                     # 4. обязательные про
       content_type: application/problem+json
       schema: "openapi.yaml#/components/schemas/Problem"
       required_fields: [code, status]
+  - id: documents-batch
+    description: "Импорт из Excel: пакет до 30 документов, как его отправляет экран импорта (FR-24); повтор с теми же id дублей не создаёт"
+    method: POST
+    path: /organizations/{organizationId}/documents/batch
+    params:
+      path: {organizationId: fixture}
+      query: {}
+      headers: {Content-Type: application/json}
+      body:
+        items:
+          - {id: "4d3c2b1a-9f8e-4d7c-8b6a-5f4e3d2c1b01", title: "Проверочный договор аренды (тестовые данные)", valid_until: "2027-06-30", reminder_offsets_days: [30, 7]}
+          - {id: "4d3c2b1a-9f8e-4d7c-8b6a-5f4e3d2c1b02", title: "Проверочный устав (тестовые данные)", valid_until: null}
+    role: editor
+    expected_status: [201]
+    response:
+      content_type: application/json
+      schema: "openapi.yaml#/components/schemas/DocumentsBatchResult"
+      required_fields: [items, "items[].id", "items[].status"]
+  - id: export-create
+    description: Временная ссылка на выгрузку сроков (календарь .ics и реестр .xlsx)
+    method: POST
+    path: /organizations/{organizationId}/exports/calendar
+    params: {path: {organizationId: fixture}, query: {}, headers: {}, body: null}
+    role: viewer
+    expected_status: [201]
+    response:
+      content_type: application/json
+      schema: "openapi.yaml#/components/schemas/CalendarExport"
+      required_fields: [download_url, file_name, expires_at]
+    capture:
+      downloadToken: {field: download_url, pattern: "/downloads/([A-Za-z0-9_-]{43})"}
+# Дополнительные проверки: не входят в перечень обязательных. Зависят от внешнего сервиса GigaChat
+# (ключ, суточный бюджет токенов, ответ модели) или от значения из предыдущей проверки (capture).
+additional_checks:
   - id: document-draft
     description: "Ассистент: черновик карточки по тексту (FR-21); на стенде ключ GigaChat подключён, без ключа — 503"
     method: POST
-    path: /organizations/{organization_id}/documents/draft
+    path: /organizations/{organizationId}/documents/draft
     params:
-      path: {organization_id: fixture}
+      path: {organizationId: fixture}
       query: {}
       headers: {Content-Type: application/json}
       body: {text: "Лицензия на розничную продажу алкогольной продукции № 78РПА0012345, выдана 14.03.2024, действует до 13.03.2029 (тестовые данные)"}
@@ -142,9 +178,9 @@ checks:                                     # 4. обязательные про
   - id: document-draft-image
     description: "Ассистент: черновик карточки по фото документа (FR-23); снимок синтетический, с тестовыми данными"
     method: POST
-    path: /organizations/{organization_id}/documents/draft-image
+    path: /organizations/{organizationId}/documents/draft-image
     params:
-      path: {organization_id: fixture}
+      path: {organizationId: fixture}
       query: {}
       headers: {Content-Type: application/json}
       body: {mime_type: image/png, image: "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"}
@@ -169,42 +205,11 @@ checks:                                     # 4. обязательные про
       content_type: application/json
       schema: "openapi.yaml#/components/schemas/ProfileMatch"
       required_fields: [feature_codes, confidence]
-  - id: documents-batch
-    description: "Импорт из Excel: пакет до 30 документов, как его отправляет экран импорта (FR-24); повтор с теми же id дублей не создаёт"
-    method: POST
-    path: /organizations/{organization_id}/documents/batch
-    params:
-      path: {organization_id: fixture}
-      query: {}
-      headers: {Content-Type: application/json}
-      body:
-        items:
-          - {id: "4d3c2b1a-9f8e-4d7c-8b6a-5f4e3d2c1b01", title: "Проверочный договор аренды (тестовые данные)", valid_until: "2027-06-30", reminder_offsets_days: [30, 7]}
-          - {id: "4d3c2b1a-9f8e-4d7c-8b6a-5f4e3d2c1b02", title: "Проверочный устав (тестовые данные)", valid_until: null}
-    role: editor
-    expected_status: [201]
-    response:
-      content_type: application/json
-      schema: "openapi.yaml#/components/schemas/DocumentsBatchResult"
-      required_fields: [items, "items[].id", "items[].status"]
-  - id: export-create
-    description: Временная ссылка на выгрузку сроков (календарь .ics и реестр .xlsx)
-    method: POST
-    path: /organizations/{organization_id}/exports/calendar
-    params: {path: {organization_id: fixture}, query: {}, headers: {}, body: null}
-    role: viewer
-    expected_status: [201]
-    response:
-      content_type: application/json
-      schema: "openapi.yaml#/components/schemas/CalendarExport"
-      required_fields: [download_url, file_name, expires_at]
-    capture:
-      download_token: {field: download_url, pattern: "/downloads/([A-Za-z0-9_-]{43})"}
   - id: registry-xlsx
     description: "Реестр в Excel по ссылке из export-create (FR-25), без токена"
     method: GET
-    path: /downloads/{download_token}
-    params: {path: {download_token: capture}, query: {format: xlsx}, headers: {}, body: null}
+    path: /downloads/{downloadToken}
+    params: {path: {downloadToken: capture}, query: {format: xlsx}, headers: {}, body: null}
     role: anonymous
     expected_status: [200]
     response:

@@ -7,7 +7,7 @@
 | Требование кейса | Что сдаём |
 |---|---|
 | Работающее решение в MAX | ссылка на бота `https://max.ru/<ник бота>`; кнопка бота открывает мини-приложение |
-| Зафиксированная версия | Git-репозиторий, тег `v1.0.0`, commit hash; альтернатива — `git archive --format=zip -o vovremya-v1.0.0.zip v1.0.0` и `sha256sum vovremya-v1.0.0.zip` |
+| Зафиксированная версия | Git-репозиторий, тег `v1.0.0`, commit hash; альтернатива — `git archive --format=zip -o vovremya-v1.0.0.zip v1.0.0` и `sha256sum vovremya-v1.0.0.zip`; перед тегом — `python3 scripts/make_manifest.py` (ARCHIVE_MANIFEST.md) |
 | README.md | [README.md](../../README.md) — 15 пунктов, таблица ниже |
 | Файл зависимостей | `go.mod`, `go.sum`, `frontend/package.json`, `frontend/package-lock.json` |
 | Docker-конфигурация | `services/core/Dockerfile`, `services/bot/Dockerfile`, `deploy/edge/Dockerfile`, `compose.yaml`, `.dockerignore`, `.env.example` |
@@ -15,7 +15,7 @@
 | Презентация PDF | `presentation.pdf`, первый служебный слайд — раздел 3 |
 | Адрес API (HTTPS) | `https://<домен>/api/v1` |
 | OpenAPI 3.1 | `openapi.yaml` |
-| Тестовые учётные записи | токены `reviewer_editor`, `reviewer_viewer` (ADR-016) |
+| Тестовые учётные записи | токены `reviewer_editor`, `reviewer_viewer` (ADR-016), выпуск в день сдачи с `--ttl 720h` |
 | Тестовые данные | `demo/demo-data.json`, команда `seed-demo` |
 | DATA-API.yaml | `DATA-API.yaml` в корне |
 

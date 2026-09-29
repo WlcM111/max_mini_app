@@ -31,6 +31,13 @@ const sessionTokenPrefix = "vvs_"
 
 // CreateSession проверяет данные запуска MAX и выдаёт серверную сессию.
 func (a *App) CreateSession(ctx context.Context, initData, platform, appVersion string) (SessionResult, error) {
+	return a.CreateSessionLimited(ctx, initData, platform, appVersion, nil)
+}
+
+// CreateSessionLimited — CreateSession с ограничением частоты по пользователю MAX:
+// allow вызывается после проверки подписи и до записи сессии.
+func (a *App) CreateSessionLimited(ctx context.Context, initData, platform, appVersion string,
+	allow func(maxUserID int64) bool) (SessionResult, error) {
 	now := a.Clock.Now()
 	// Длина проверяется в символах: OpenAPI задаёт minLength/maxLength в символах.
 	if l := utf8.RuneCountInString(initData); l < 16 || l > 4096 {
@@ -56,6 +63,10 @@ func (a *App) CreateSession(ctx context.Context, initData, platform, appVersion 
 			a.Metrics.SessionCreate.WithLabelValues("malformed").Inc()
 		}
 		return SessionResult{}, err
+	}
+	if allow != nil && !allow(identity.MaxUserID) {
+		a.Metrics.SessionCreate.WithLabelValues("rate_limited").Inc()
+		return SessionResult{}, domain.ErrRateLimited
 	}
 
 	token, err := a.Random.Token()

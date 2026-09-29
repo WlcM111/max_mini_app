@@ -3,8 +3,23 @@ export type SheetRows = string[][];
 
 const utf8 = new TextDecoder();
 
+export const XLSX_UNSUPPORTED = 'Это приложение MAX не открывает файлы .xlsx. Сохраните таблицу в формате CSV и выберите её снова.';
+
+// deflate-raw нет в iOS до 16.4 и в старых Android WebView.
+function rawInflater(): DecompressionStream {
+  try {
+    return new DecompressionStream('deflate-raw');
+  } catch {
+    throw new Error(XLSX_UNSUPPORTED);
+  }
+}
+
 async function inflateRaw(data: ArrayBuffer): Promise<ArrayBuffer> {
-  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  const blob = new Blob([data]);
+  // Потоки Blob появились не во всех WebView одновременно с deflate-raw: проверяем
+  // обе возможности до вызова, иначе пользователь получит TypeError вместо подсказки.
+  if (typeof blob.stream !== 'function') throw new Error(XLSX_UNSUPPORTED);
+  const stream = blob.stream().pipeThrough(rawInflater());
   return new Response(stream).arrayBuffer();
 }
 

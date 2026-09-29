@@ -31,14 +31,11 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	result, err := s.app.CreateSession(r.Context(), req.InitData, req.Platform, req.AppVersion)
+	// Лимит по пользователю проверяется до записи сессии.
+	result, err := s.app.CreateSessionLimited(r.Context(), req.InitData, req.Platform, req.AppVersion,
+		func(maxUserID int64) bool { return s.sessionByUser.Allow(strconv.FormatInt(maxUserID, 10), now) })
 	if err != nil {
 		s.fail(w, r, err)
-		return
-	}
-	if !s.sessionByUser.Allow(strconv.FormatInt(result.Account.MaxUserID, 10), now) {
-		s.app.Metrics.SessionCreate.WithLabelValues("rate_limited").Inc()
-		s.fail(w, r, domain.ErrRateLimited)
 		return
 	}
 	start := startTargetDTO{Kind: string(result.Start.Kind)}

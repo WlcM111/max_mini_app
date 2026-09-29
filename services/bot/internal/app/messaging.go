@@ -79,6 +79,7 @@ func enqueueTx(ctx context.Context, messages ports.MessageRepo, req domain.Enque
 		NotAfter:       req.NotAfter,
 		Status:         domain.StatusQueued,
 		NextAttemptAt:  now,
+		CreatedAt:      now,
 	}
 	stored, inserted, err := messages.Insert(ctx, n)
 	if err != nil {

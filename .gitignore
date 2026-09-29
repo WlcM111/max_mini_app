@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+!.env.reminders.example
 !frontend/.env.development
 secrets/
 frontend/node_modules/

@@ -4,6 +4,7 @@ import { hasSystemBackButton, hideBackButton, showBackButton } from '../platform
 import { getLastOrganization } from '../session/sessionStore';
 import { roleAllows, useRole, useSession } from '../session/useSession';
 import { initials } from '../shared/lib/format';
+import { startHistory, trackHistory, type HistoryIndex } from '../shared/lib/historyIndex';
 import { setNavDirection } from '../shared/lib/navDirection';
 import { AppShell } from '../shared/ui/AppShell';
 import { BackContext } from '../shared/ui/backContext';
@@ -58,6 +59,9 @@ function RootLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
+  // Позиция в истории: с первого экрана запуска «Назад» ведёт на главную.
+  const history = useRef<HistoryIndex | null>(null);
+  history.current = history.current ? trackHistory(history.current, navigationType, location.key) : startHistory(location.key);
   const { me } = useSession();
   const isRoot = ROOT_PATTERNS.some((pattern) => pattern.test(location.pathname));
   const tabMatch = TAB_PATTERN.exec(location.pathname);
@@ -98,10 +102,10 @@ function RootLayout() {
   }, []);
 
   const goBack = useCallback(() => {
-    // Диплинк открывается без истории: возвращаемся на главный экран.
-    if (location.key && location.key !== 'default') navigate(-1);
+    // Диплинк или экран после замены открыт без истории: возвращаемся на главный экран.
+    if ((history.current?.index ?? 0) > 0) navigate(-1);
     else navigate('/', { replace: true });
-  }, [location.key, navigate]);
+  }, [navigate]);
 
   useEffect(() => {
     if (isRoot) {

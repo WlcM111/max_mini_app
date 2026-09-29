@@ -20,8 +20,8 @@ servers:
     description: Опубликованный стенд (APP_ENV=prod)
     variables:
       domain:
-        default: app.vovremya.ru
-        description: Фактический домен задаётся в EDGE_SITE_ADDRESS при развёртывании
+        default: maxminiapp.race-src.com
+        description: Домен боевого стенда (EDGE_SITE_ADDRESS); тот же адрес — base_url в DATA-API.yaml
 security:
   - bearerAuth: []
 tags:

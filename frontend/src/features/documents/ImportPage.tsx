@@ -16,8 +16,8 @@ import { formatDate } from '../../shared/lib/dates';
 import { plural } from '../../shared/lib/plural';
 import { columnLetter, readSpreadsheet } from '../../shared/lib/spreadsheet';
 import { useSession } from '../../session/useSession';
-import { createDocumentsBatch } from './api';
-import { buildRows, detectMapping, IMPORT_FIELDS, type ImportField, type Mapping } from './importRows';
+import { createDocumentsBatch, listDocumentTitles } from './api';
+import { buildRows, detectMapping, IMPORT_FIELDS, normalizeTitle, type ImportField, type Mapping } from './importRows';
 
 const BATCH = 30; // domain.MaxDocumentsPerBatch
 const MAX_ROWS = 1000;
@@ -40,10 +40,15 @@ export function ImportPage() {
   const [readError, setReadError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  // Названия из реестра на момент выбора файла: повтор импорта не должен задвоить документы.
+  const [known, setKnown] = useState<ReadonlySet<string>>(() => new Set());
   const counter = useRef({ done: 0, total: 0 });
   const organizationName = me.memberships.find((item) => item.organization_id === orgId)?.organization_name;
 
-  const rows = useMemo(() => (table && mapping ? buildRows(table, mapping, hasHeader) : []), [table, mapping, hasHeader]);
+  const rows = useMemo(
+    () => (table && mapping ? buildRows(table, mapping, hasHeader, undefined, known) : []),
+    [table, mapping, hasHeader, known],
+  );
   const pending = rows.filter((row) => row.body && !excluded.has(row.key) && !imported.has(row.key));
   const invalid = rows.filter((row) => !row.body).length;
   const width = table ? Math.max(0, ...table.slice(0, 50).map((cells) => cells.length)) : 0;
@@ -61,8 +66,13 @@ export function ImportPage() {
     setReadError(null);
     setFailure(null);
     try {
-      const data = await readSpreadsheet(file);
+      // Реестр недоступен — импорт работает и без проверки повторов.
+      const [data, titles] = await Promise.all([
+        readSpreadsheet(file),
+        listDocumentTitles(orgId).catch(() => [] as string[]),
+      ]);
       if (data.length === 0) throw new Error('В файле нет строк с данными');
+      setKnown(new Set(titles.map(normalizeTitle)));
       const detected = detectMapping(data);
       setTable(data.slice(0, MAX_ROWS + 1));
       setMapping(detected.mapping);
@@ -299,6 +309,9 @@ export function ImportPage() {
                             {error}
                           </span>
                         ))}
+                        {ok && row.duplicate ? (
+                          <span className="import-row__error">Такой документ уже есть в реестре — снимите отметку, чтобы не задвоить</span>
+                        ) : null}
                       </span>
                     </label>
                   );

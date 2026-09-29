@@ -271,22 +271,43 @@ func (c *Client) GetMe(ctx context.Context) (domain.Profile, error) {
 
 // ListSubscriptions возвращает URL активных подписок webhook.
 func (c *Client) ListSubscriptions(ctx context.Context) ([]string, error) {
-	resp, err := c.do(ctx, http.MethodGet, "get_subscriptions", "/subscriptions", nil, nil)
+	parsed, err := c.getSubscriptions(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("GET /subscriptions: %w", err)
-	}
-	if resp.status/100 != 2 {
-		return nil, fmt.Errorf("GET /subscriptions: MAX ответил %d", resp.status)
-	}
-	var parsed subscriptionList
-	if err := json.Unmarshal(resp.body, &parsed); err != nil {
-		return nil, fmt.Errorf("GET /subscriptions: разбор ответа: %w", err)
+		return nil, err
 	}
 	out := make([]string, 0, len(parsed.Subscriptions))
 	for _, s := range parsed.Subscriptions {
 		out = append(out, s.URL)
 	}
 	return out, nil
+}
+
+// SubscriptionTypes возвращает типы событий активных подписок: URL → update_types.
+func (c *Client) SubscriptionTypes(ctx context.Context) (map[string][]string, error) {
+	parsed, err := c.getSubscriptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]string, len(parsed.Subscriptions))
+	for _, s := range parsed.Subscriptions {
+		out[s.URL] = s.UpdateTypes
+	}
+	return out, nil
+}
+
+func (c *Client) getSubscriptions(ctx context.Context) (subscriptionList, error) {
+	resp, err := c.do(ctx, http.MethodGet, "get_subscriptions", "/subscriptions", nil, nil)
+	if err != nil {
+		return subscriptionList{}, fmt.Errorf("GET /subscriptions: %w", err)
+	}
+	if resp.status/100 != 2 {
+		return subscriptionList{}, fmt.Errorf("GET /subscriptions: MAX ответил %d", resp.status)
+	}
+	var parsed subscriptionList
+	if err := json.Unmarshal(resp.body, &parsed); err != nil {
+		return subscriptionList{}, fmt.Errorf("GET /subscriptions: разбор ответа: %w", err)
+	}
+	return parsed, nil
 }
 
 // Subscribe создаёт подписку webhook.

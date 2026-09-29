@@ -37,6 +37,19 @@ export const listDocuments = (organizationId: string, filter: DocumentsFilter = 
     }),
   );
 
+/** Названия всех документов организации (страницы по 100) — для проверки повторов при импорте. */
+export async function listDocumentTitles(organizationId: string): Promise<string[]> {
+  const titles: string[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 10; page += 1) {
+    const result = await listDocuments(organizationId, { limit: 100, ...(cursor ? { cursor } : {}) });
+    titles.push(...result.items.map((item) => item.title));
+    if (!result.next_cursor) break;
+    cursor = result.next_cursor;
+  }
+  return titles;
+}
+
 export const getDocument = (documentId: string): Promise<Document> =>
   run(({ headers, signal }) =>
     client.GET('/documents/{documentId}', { params: { path: { documentId } }, headers, signal }),

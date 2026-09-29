@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { columnLetter, parseCsv, readSpreadsheet } from './spreadsheet';
+import { columnLetter, parseCsv, readSpreadsheet, XLSX_UNSUPPORTED } from './spreadsheet';
 
 // Файл с гарантированным arrayBuffer(): не во всех версиях jsdom у File есть этот метод.
 function fileOf(bytes: Uint8Array, name: string): File {
@@ -97,6 +97,20 @@ describe('T-FE-IMPORT: чтение таблиц .csv и .xlsx', () => {
       ['Лицензия на алкоголь', '78РПА0012345', '47190'],
       ['да'],
     ]);
+  });
+
+  it('без распаковки deflate-raw предлагает сохранить таблицу в CSV', async () => {
+    const name = 'xl/workbook.xml';
+    const zip = storedZip({ [name]: `<workbook ${NS}/>` });
+    // Метод 8 (deflate) в центральном каталоге: чтение дойдёт до распаковки.
+    new DataView(zip.buffer).setUint16(zip.length - 22 - 46 - name.length + 10, 8, true);
+    const original = globalThis.DecompressionStream;
+    Object.defineProperty(globalThis, 'DecompressionStream', { value: undefined, configurable: true, writable: true });
+    try {
+      await expect(readSpreadsheet(fileOf(zip, 'reestr.xlsx'))).rejects.toThrow(XLSX_UNSUPPORTED);
+    } finally {
+      Object.defineProperty(globalThis, 'DecompressionStream', { value: original, configurable: true, writable: true });
+    }
   });
 
   it('отклоняет старый формат .xls', async () => {

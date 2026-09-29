@@ -201,6 +201,7 @@ services:
     build: *reminders-build
     image: vovremya/reminders:${APP_VERSION:-dev}
     command: ["serve"]
+    restart: unless-stopped
     environment:
       <<: *go-common
       APP_VERSION: ${APP_VERSION:-dev}
@@ -235,7 +236,8 @@ services:
       # проксируя /api/v1 в core и /max/webhook в bot.
       dockerfile: deploy/edge/Dockerfile
       args:
-        VITE_MOCK_BRIDGE: ${VITE_MOCK_BRIDGE:-false}
+        # Без .env — имитация MAX Bridge для локальной проверки; на стенде в .env задаётся false.
+        VITE_MOCK_BRIDGE: ${VITE_MOCK_BRIDGE:-true}
         VITE_APP_VERSION: ${APP_VERSION:-dev}
     image: vovremya/edge:${APP_VERSION:-dev}
     restart: unless-stopped
@@ -274,7 +276,8 @@ services:
       - prometheus_data:/prometheus
     ports:
       - "127.0.0.1:9091:9090"
-    networks: [data]
+    # data — для сбора метрик; edge — порт не публикуется из сети internal.
+    networks: [data, edge]
 
   postgres-test:
     profiles: ["test"]

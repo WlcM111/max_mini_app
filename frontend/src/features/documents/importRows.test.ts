@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRows, detectMapping, parseDateCell } from './importRows';
+import { buildRows, detectMapping, normalizeTitle, parseDateCell } from './importRows';
 
 describe('T-FE-IMPORT: разбор строк таблицы (FR-24)', () => {
   it('сопоставляет столбцы по заголовкам: «Номер документа» — номер, а не название', () => {
@@ -63,5 +63,21 @@ describe('T-FE-IMPORT: разбор строк таблицы (FR-24)', () => {
     const [first] = buildRows(table, mapping, hasHeader);
     expect(first?.key).toBe('line-2');
     expect(first?.body?.id).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});
+
+describe('T-FE-IMPORT: документы, которые уже есть в реестре', () => {
+  it('отмечает строку, но не блокирует её', () => {
+    const rows = [
+      ['Название', 'Действует до'],
+      ['  Лицензия  на алкоголь ', '13.03.2029'],
+      ['Устав', 'бессрочно'],
+    ];
+    const { mapping, hasHeader } = detectMapping(rows);
+    const existing = new Set(['Лицензия на АЛКОГОЛЬ'].map(normalizeTitle));
+    const [first, second] = buildRows(rows, mapping, hasHeader, undefined, existing);
+    expect(first?.duplicate).toBe(true);
+    expect(first?.body).not.toBeNull();
+    expect(second?.duplicate).toBe(false);
   });
 });

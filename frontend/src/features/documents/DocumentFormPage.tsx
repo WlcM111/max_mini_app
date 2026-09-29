@@ -318,7 +318,6 @@ export function DocumentFormPage({ mode }: Props) {
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="visually-hidden"
                 disabled={recognizePhoto.isPending}
                 onChange={(event) => {
