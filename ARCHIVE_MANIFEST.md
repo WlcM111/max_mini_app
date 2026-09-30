@@ -1,6 +1,6 @@
 # Состав архива
 
-Всего файлов в архиве: 509. Каталогов: 113. Дата: 29.09.2026. Версия архитектуры: 2.0.0.
+Всего файлов в архиве: 526. Каталогов: 114. Дата: 30.09.2026. Версия архитектуры: 2.0.0.
 
 Три backend-микросервиса и MAX Mini App (каталог `frontend/`, 159 файлов), нормативная документация,
 контракты, миграции, тесты и конфигурация запуска.
@@ -8,7 +8,7 @@
 Каталоги `frontend/node_modules` и `frontend/dist` не входят: зависимости восстанавливаются
 командой `npm ci` по `frontend/package-lock.json`.
 
-Ниже перечислены 507 файлов суммарным размером 3287703 байт — состав git-репозитория.
+Ниже перечислены 524 файлов суммарным размером 3384384 байт — состав git-репозитория.
 Два файла манифеста (`ARCHIVE_MANIFEST.md` и `docs/implementation/archive-manifest.json`) в перечень
 не входят: их содержимое зависит от самого перечня. Пересборка — `git add -A` и
 `python3 scripts/make_manifest.py`; архив для сдачи — `git archive` по тегу (docs/operations/submission.md).
@@ -17,15 +17,17 @@
 |---|---|---|
 | .dockerignore | 134 | 356b294ba0d47ddf… |
 | .editorconfig | 173 | a00bf61ee5d97584… |
-| .env.example | 4527 | 8faf70245f4ce2ca… |
+| .env.example | 4424 | b42e16c53483ef93… |
 | .env.reminders.example | 514 | ca586e2ed6bf77a5… |
 | .github/workflows/frontend-visual.yml | 1142 | fc4a5821e456b54d… |
+| .github/workflows/repo-checks.yml | 650 | 70bfb2c74d1f61ea… |
 | .gitignore | 499 | 842836310784bfbe… |
 | DATA-API.yaml | 16751 | 46c680d6916a48b0… |
-| Makefile | 3396 | c045d169ead3af3d… |
-| README.md | 37490 | 3da93c1a7f0b7145… |
+| Makefile | 3679 | bf8c96424d6b68d1… |
+| README.md | 37820 | 5c63e696238b3a7d… |
 | REDESIGN.md | 7724 | 57338609a834f5f5… |
 | api/proto/vovremya/bot/v1/messaging.proto | 5307 | a2f98c539ff29e22… |
+| api/proto/vovremya/reminders/v1/commands.proto | 2768 | 4f456598b1c79134… |
 | api/proto/vovremya/reminders/v1/ingest.proto | 8566 | aa57f5e6b59c61e5… |
 | api/proto/vovremya/reminders/v1/query.proto | 3511 | e304a6bb821b103e… |
 | branding/vovremya-bot-avatar-640.png | 18285 | decc85bebf26eb65… |
@@ -35,7 +37,7 @@
 | buf.gen.yaml | 196 | b2882cd0c123acc0… |
 | buf.yaml | 97 | 4b9ad91c75b2caa8… |
 | compose.reminders.yaml | 3137 | ba98351e9898ebf6… |
-| compose.yaml | 13978 | f55142b2d983dc8c… |
+| compose.yaml | 15243 | 8d3cfad207ba235e… |
 | demo/demo-data.json | 5180 | a39c33dcdf2c4079… |
 | demo/embed.go | 179 | ea453feae21622b8… |
 | deploy/ca/russian_trusted_root_ca.pem | 2057 | aa800ef345422d61… |
@@ -45,7 +47,7 @@
 | deploy/postgres/init-reminders/01-init.sh | 1315 | e40c5b3a456f65c2… |
 | deploy/postgres/init/01-init.sh | 2580 | c2124eda713e7b71… |
 | deploy/prometheus/prometheus.yml | 185 | 209b21b603ae1f7f… |
-| docs/ARCHITECTURE_TZ.md | 14476 | 73536e76a8e11613… |
+| docs/ARCHITECTURE_TZ.md | 14610 | dd9b74059c6df962… |
 | docs/README.md | 489 | cd73a9977387dba9… |
 | docs/adr/ADR-001-product-scope.md | 6149 | f50379a2355bd5fc… |
 | docs/adr/ADR-002-service-boundaries.md | 3742 | a44778658250504b… |
@@ -58,7 +60,7 @@
 | docs/adr/ADR-009-session-storage.md | 2423 | 47430a0d5d3d6894… |
 | docs/adr/ADR-010-long-running-operations.md | 3943 | 38f52aa89c81a789… |
 | docs/adr/ADR-011-frontend-delivery-edge.md | 2364 | 5bd374a7594d2e2c… |
-| docs/adr/ADR-012-observability.md | 1978 | 07a8cdb68d2014b7… |
+| docs/adr/ADR-012-observability.md | 1965 | 956b3ddd00a95288… |
 | docs/adr/ADR-013-compose-deployment.md | 2127 | 013f41e8e06b1e8f… |
 | docs/adr/ADR-014-postgres-access.md | 1430 | fcfbe842f7dff6a5… |
 | docs/adr/ADR-015-configuration-secrets.md | 2024 | 95712902fdcc542c… |
@@ -82,14 +84,14 @@
 | docs/adr/ADR-033-photo-recognition.md | 5653 | b1c6b81294cb3ebf… |
 | docs/adr/ADR-034-spreadsheet-import.md | 3291 | 8437450918673890… |
 | docs/adr/ADR-035-registry-xlsx.md | 2526 | cb2af30cf463c66a… |
-| docs/adr/ADR-036-snooze-reminder.md | 4119 | f1f206fca5748555… |
-| docs/adr/README.md | 6479 | d7ad0c80aec09426… |
-| docs/architecture/backend-services.md | 14325 | b380e88bea0dd649… |
+| docs/adr/ADR-036-snooze-reminder.md | 6400 | 49f4dfb9ad99818f… |
+| docs/adr/README.md | 6513 | df2a9681792cde0a… |
+| docs/architecture/backend-services.md | 14824 | 5071d37fa143cecb… |
 | docs/architecture/consistency.md | 15669 | 523712b96c0cebb8… |
 | docs/architecture/deployment.md | 3045 | 6766f90eb0f78c0a… |
 | docs/architecture/load-reliability.md | 14163 | e9a623b1b37abe3e… |
 | docs/architecture/long-operations.md | 5221 | d93aa24aba06a9e1… |
-| docs/architecture/observability.md | 5728 | 473d5637ef6a7682… |
+| docs/architecture/observability.md | 5832 | 47de9bc0028c598b… |
 | docs/architecture/security.md | 10758 | 13f7d79915782313… |
 | docs/architecture/sequences.md | 7082 | ac56ba978e716576… |
 | docs/architecture/system-overview.md | 3855 | ebe6c045c87ce49a… |
@@ -108,7 +110,7 @@
 | docs/handoffs/bot-service-v2.md | 4033 | f2094eeb4d2f2b74… |
 | docs/handoffs/bot-service.md | 16106 | 810e395c869aa8e8… |
 | docs/handoffs/core-service-v2.md | 12049 | 2faf956dd6939f03… |
-| docs/handoffs/core-service.md | 31278 | 094586c6fbc3762c… |
+| docs/handoffs/core-service.md | 31247 | 3092da76c72ab3d7… |
 | docs/handoffs/frontend-miniapp.md | 16265 | d779cfd89daf6e8b… |
 | docs/handoffs/frontend-next-steps.md | 3798 | 8cfee303d7f86e68… |
 | docs/handoffs/max-integration.md | 3798 | a9597da309eeb453… |
@@ -126,13 +128,13 @@
 | docs/implementation/input-manifest.json | 3397 | 5ae353744d8a6a20… |
 | docs/implementation/integration-frontend-run.md | 2376 | 928f3cc72a064a4a… |
 | docs/implementation/integration-report.md | 15496 | 400a283a59944c57… |
-| docs/implementation/known-limitations.md | 9059 | fc0683d9ddbbf7eb… |
+| docs/implementation/known-limitations.md | 9074 | 8f19cd7dd0fb0208… |
 | docs/implementation/security-review-frontend.md | 8324 | a2c726e22341459d… |
 | docs/max/max-integration-spec.md | 30100 | aff35773150d37c1… |
 | docs/max/max-platform-facts.md | 19097 | 8dd5fdbbbea515b9… |
 | docs/max/test-vectors.md | 3597 | b45708f1acc1ab2a… |
 | docs/operations/compose-and-runbook.md | 7610 | ae9c2727065c11a1… |
-| docs/operations/configuration.md | 16667 | 685fed14e791c0f5… |
+| docs/operations/configuration.md | 17869 | 316379ec517b5c52… |
 | docs/operations/max-miniapp-setup.md | 5695 | 06f65506f45bbb0c… |
 | docs/operations/repository-tree.md | 45674 | d51c8d70227f35fa… |
 | docs/operations/submission.md | 6226 | 7621d1efd9dbe003… |
@@ -142,12 +144,12 @@
 | docs/requirements/glossary.md | 6624 | 0c0436964b97c6b6… |
 | docs/requirements/materials-registry.md | 3182 | bdacecd82360bc22… |
 | docs/requirements/product-brief.md | 12276 | 261a0acfd71a6191… |
-| docs/requirements/requirements-registry.md | 20240 | 16e0fc14fb64c32d… |
+| docs/requirements/requirements-registry.md | 20571 | 18539332989ffedf… |
 | docs/requirements/traceability-matrix.md | 12205 | a3678fb2f314bf1a… |
 | docs/testing/acceptance.md | 5370 | 4bc04cdbb7bb7d48… |
 | docs/testing/consistency-report-v2.md | 7856 | 02f819e248ae4864… |
 | docs/testing/consistency-report.md | 14522 | 1b4aef4f897bf860… |
-| docs/testing/frontend-test-report.md | 8711 | 5fab544734973334… |
+| docs/testing/frontend-test-report.md | 8757 | cfcd986b607e6e18… |
 | docs/testing/test-strategy.md | 19690 | 547f118ef459e58f… |
 | docs/testing/traceability-core.md | 8735 | 4d60ed0ccad38d01… |
 | docs/testing/traceability-frontend.md | 6838 | 8f13b9d6ea7338da… |
@@ -159,8 +161,8 @@
 | frontend/e2e/visual/visual.spec.ts | 5567 | 78edf517e4bd417e… |
 | frontend/eslint.config.js | 2285 | 873ec18d00c37de5… |
 | frontend/index.html | 670 | 8cc1b61d6802f597… |
-| frontend/package-lock.json | 187467 | c66b619fe5a2a2c3… |
-| frontend/package.json | 1577 | d4767dc643fe5f08… |
+| frontend/package-lock.json | 188524 | f77ad452f495e24d… |
+| frontend/package.json | 1578 | 70466b7e5bf8901b… |
 | frontend/playwright.config.ts | 1044 | 2a4c044a848b1795… |
 | frontend/playwright.visual.config.ts | 1279 | fac6a0f879664e5e… |
 | frontend/public/favicon.svg | 470 | f8c29ee790cb88c1… |
@@ -194,8 +196,8 @@
 | frontend/src/features/documents/assistantNotice.ts | 1616 | a4c850c42b779605… |
 | frontend/src/features/documents/documentForm.test.ts | 2429 | dd100120dc7f15bd… |
 | frontend/src/features/documents/documentForm.ts | 5192 | 5a263d6c79b8f050… |
-| frontend/src/features/documents/importRows.test.ts | 4492 | 5437584158bb20ee… |
-| frontend/src/features/documents/importRows.ts | 7136 | 210a3ee5b693e887… |
+| frontend/src/features/documents/importRows.test.ts | 5968 | d7668b66f14e9ac9… |
+| frontend/src/features/documents/importRows.ts | 8406 | bc6dc2a4e6ffa7e6… |
 | frontend/src/features/documents/renewalChecklist.test.ts | 2651 | 74adf553d9da48ba… |
 | frontend/src/features/documents/renewalChecklist.ts | 2989 | 0227c6c2163b87dc… |
 | frontend/src/features/export/CalendarExportButton.tsx | 2214 | 03066b9357096608… |
@@ -312,6 +314,8 @@
 | frontend/vitest.integration.config.ts | 802 | fbf045bf47cc93d5… |
 | gen/go/vovremya/bot/v1/messaging.pb.go | 35435 | 25aaae12e7299f93… |
 | gen/go/vovremya/bot/v1/messaging_grpc.pb.go | 12060 | a4a2db0f3e568fa2… |
+| gen/go/vovremya/reminders/v1/commands.pb.go | 11253 | a1e2bc1c6f4ce8bd… |
+| gen/go/vovremya/reminders/v1/commands_grpc.pb.go | 6689 | 7091a011872676e6… |
 | gen/go/vovremya/reminders/v1/ingest.pb.go | 55928 | d189c964c95378e8… |
 | gen/go/vovremya/reminders/v1/ingest_grpc.pb.go | 8415 | 7fd6698401aad950… |
 | gen/go/vovremya/reminders/v1/query.pb.go | 24432 | f079e338bd6eb6d4… |
@@ -341,9 +345,10 @@
 | scripts/setup_gigachat_env.sh | 5625 | 5e5e96b9e9c2d67a… |
 | scripts/sign_initdata.py | 2014 | a1108ac9fc080d5c… |
 | services/bot/Dockerfile | 1445 | 4fbe0549e4e09de1… |
-| services/bot/cmd/bot/main.go | 10362 | e81ecb50805e4974… |
+| services/bot/cmd/bot/main.go | 11007 | 2a5cdfb24c507de7… |
 | services/bot/internal/adapters/clock/clock.go | 744 | 2ab33f5dc3b3f2fa… |
 | services/bot/internal/adapters/grpcserver/server.go | 8716 | 2e28c12012b820c9… |
+| services/bot/internal/adapters/maxapi/answer_test.go | 2203 | 34ba26afda83c487… |
 | services/bot/internal/adapters/maxapi/client.go | 12569 | 2ee69b550ef83f19… |
 | services/bot/internal/adapters/maxapi/client_test.go | 13323 | 93fa6a0496825413… |
 | services/bot/internal/adapters/maxapi/models.go | 4714 | 5b9624b062cc0153… |
@@ -355,6 +360,7 @@
 | services/bot/internal/adapters/postgres/recipients.go | 4513 | a44509699e75d0b5… |
 | services/bot/internal/adapters/ratelimit/limiter.go | 3712 | 99139e1fd94a4add… |
 | services/bot/internal/adapters/ratelimit/limiter_test.go | 3356 | aff29852ff754e04… |
+| services/bot/internal/adapters/remindersgrpc/client.go | 2086 | c639fbe1a2b1d85f… |
 | services/bot/internal/adapters/webhook/handler.go | 4395 | 66494c930c9bea06… |
 | services/bot/internal/adapters/webhook/parse.go | 4388 | 5c33084256559b0c… |
 | services/bot/internal/adapters/webhook/parse_test.go | 5351 | b3818e3e73d377b5… |
@@ -368,10 +374,11 @@
 | services/bot/internal/app/messaging.go | 6338 | c3ecd4c01e4d95ae… |
 | services/bot/internal/app/metrics.go | 1679 | 30427d276db1c494… |
 | services/bot/internal/app/profile.go | 2970 | 4b04a4d07f9ae3a0… |
-| services/bot/internal/app/snooze.go | 2465 | 29cdac72a1ea7ae3… |
-| services/bot/internal/app/webhook.go | 4989 | 1c980304b30bfa7a… |
+| services/bot/internal/app/snooze.go | 3442 | 29aca62d55b60c04… |
+| services/bot/internal/app/snooze_test.go | 3810 | d11da3e9ab3bcf8c… |
+| services/bot/internal/app/webhook.go | 5024 | 238ca220169e5717… |
 | services/bot/internal/archtest/arch_test.go | 6255 | c831b0c36b931eee… |
-| services/bot/internal/config/config.go | 8893 | 2ab97d4c3bb4ded2… |
+| services/bot/internal/config/config.go | 9502 | 5784bcaece03b531… |
 | services/bot/internal/config/config_test.go | 4983 | a104e55b7a810a4e… |
 | services/bot/internal/domain/backoff.go | 964 | ffcb2f1b620a4507… |
 | services/bot/internal/domain/delivery.go | 2511 | a61b75dd1e82949d… |
@@ -380,11 +387,11 @@
 | services/bot/internal/domain/notification.go | 6890 | 77d585fc4e1d3571… |
 | services/bot/internal/domain/profile.go | 1617 | 1a0add2353ccf7f1… |
 | services/bot/internal/domain/recipient.go | 3142 | 5bc33acbd36f82f1… |
-| services/bot/internal/domain/snooze.go | 4499 | a9336b615f0b495e… |
-| services/bot/internal/domain/snooze_test.go | 3613 | 26db821b59437790… |
+| services/bot/internal/domain/snooze.go | 1926 | 4b47d90f3c33e98c… |
+| services/bot/internal/domain/snooze_test.go | 1792 | ff60db58d8e25f03… |
 | services/bot/internal/domain/texts.go | 2357 | 10fa7202ad02b681… |
 | services/bot/internal/domain/update.go | 3264 | 6575c3277f04c4b9… |
-| services/bot/internal/ports/ports.go | 6836 | a1c2cabbc9e04953… |
+| services/bot/internal/ports/ports.go | 7693 | 9e1e21b14e18359a… |
 | services/bot/migrations/00001_init.sql | 4382 | 9d110044eb11dadb… |
 | services/bot/migrations/00002_migration_history_privileges.sql | 1183 | 22ff2f3868c4c195… |
 | services/bot/migrations/embed.go | 300 | 08a5e00fd30e8b14… |
@@ -414,7 +421,7 @@
 | services/core/internal/adapters/httpapi/ratelimit.go | 2015 | b9eb846533b3e446… |
 | services/core/internal/adapters/httpapi/router.go | 3369 | a5860aea125de6ea… |
 | services/core/internal/adapters/httpapi/server.go | 5317 | 7fb60c6d135e86fa… |
-| services/core/internal/adapters/ics/calendar.go | 1742 | 5b2426014291d290… |
+| services/core/internal/adapters/ics/calendar.go | 2837 | 00cded85cc398a82… |
 | services/core/internal/adapters/maxlaunch/verifier.go | 4450 | 70d17f715c587f12… |
 | services/core/internal/adapters/maxlaunch/verifier_test.go | 5009 | 581d5cd2cfbad684… |
 | services/core/internal/adapters/postgres/accounts.go | 8412 | ec24dd287eb204a7… |
@@ -430,7 +437,7 @@
 | services/core/internal/app/accounts.go | 6563 | 59928b8837e9fb35… |
 | services/core/internal/app/app.go | 5017 | ecc16d4ed3c81cc5… |
 | services/core/internal/app/assistant.go | 9426 | 2dc029271daea89a… |
-| services/core/internal/app/documents.go | 19250 | 9d514b5588190a91… |
+| services/core/internal/app/documents.go | 19516 | 4727b3f84b6eb929… |
 | services/core/internal/app/exports.go | 2778 | 02dfe9de67554338… |
 | services/core/internal/app/invites.go | 9974 | 22999427a9d16fa2… |
 | services/core/internal/app/members.go | 5139 | ea88d9090fb50d86… |
@@ -438,11 +445,11 @@
 | services/core/internal/app/organizations.go | 7789 | 0e15280163e9fa5f… |
 | services/core/internal/app/outbox.go | 8704 | 9c9820b1212a11fc… |
 | services/core/internal/app/seed.go | 4233 | 7ef80c3e882361f2… |
-| services/core/internal/app/sessions.go | 7205 | 285258a29ac477a7… |
+| services/core/internal/app/sessions.go | 6899 | c899ddaa8bc214bd… |
 | services/core/internal/archtest/arch_test.go | 4015 | fa57889fbf4383ad… |
 | services/core/internal/config/config.go | 9350 | 5698f3e6b074a225… |
 | services/core/internal/config/config_test.go | 2577 | 438d65092017a643… |
-| services/core/internal/domain/assistant.go | 5652 | c434ed10fabd4345… |
+| services/core/internal/domain/assistant.go | 5688 | 644e4578bde59d83… |
 | services/core/internal/domain/assistant_dates.go | 6997 | 75287863ac76de99… |
 | services/core/internal/domain/assistant_test.go | 8052 | 045ac88c3b34a491… |
 | services/core/internal/domain/catalog.go | 5364 | 2898ae3aa839fce0… |
@@ -455,8 +462,10 @@
 | services/core/internal/domain/role.go | 1509 | 5ff1260d8e6e3baf… |
 | services/core/internal/domain/start_param.go | 2054 | 8995fdfb2e24bf24… |
 | services/core/internal/domain/start_param_renew_test.go | 413 | b693615d447ce370… |
+| services/core/internal/domain/text_input.go | 1740 | 69e5ac4bff6f932d… |
+| services/core/internal/domain/text_input_test.go | 3864 | 37be47e70d784afb… |
 | services/core/internal/domain/texts.go | 1282 | 6926f54d4943e151… |
-| services/core/internal/domain/validation.go | 5527 | aaa57e1186147ae8… |
+| services/core/internal/domain/validation.go | 6052 | 4485818e4a9400ae… |
 | services/core/internal/ports/ports.go | 12584 | 04d7f66d7838d727… |
 | services/core/migrations/00001_init.sql | 16067 | ed07e00a0ae8cb6e… |
 | services/core/migrations/00002_catalog_seed.sql | 16345 | f0e83655268f8086… |
@@ -465,29 +474,33 @@
 | services/core/migrations/embed.go | 185 | 04b22ade3d04de08… |
 | services/core/test/integration/api_test.go | 32945 | 790dfaf1ecc7aefd… |
 | services/core/test/integration/assistant_test.go | 19162 | 0a7c0e0ffb081ccd… |
+| services/core/test/integration/audit_fixes_test.go | 13372 | 4a013ccd8d1bc593… |
 | services/core/test/integration/helpers_test.go | 5425 | c09d888a5272551f… |
 | services/core/test/integration/outbox_test.go | 13054 | 0eecd7a76872ddbd… |
 | services/core/test/testutil/testutil.go | 19707 | 83d61286523c3fdf… |
 | services/reminders/Dockerfile | 922 | 2d954f8f0b4e9036… |
 | services/reminders/Dockerfile.botdouble | 738 | 15913e4fde503058… |
-| services/reminders/cmd/reminders/main.go | 8193 | 893676a9e8fc939f… |
+| services/reminders/cmd/reminders/main.go | 8385 | 690eb3f7288f034c… |
 | services/reminders/internal/adapters/botgrpc/client.go | 4483 | 76a03cbb530f0efb… |
 | services/reminders/internal/adapters/clock/clock.go | 325 | b440d80f2391a033… |
+| services/reminders/internal/adapters/grpcserver/commands.go | 2519 | 4ce0627b22a5dd5b… |
 | services/reminders/internal/adapters/grpcserver/mapping.go | 7544 | 324ddc624a300b37… |
 | services/reminders/internal/adapters/grpcserver/server.go | 6712 | 4eb59dd5edecf9f3… |
 | services/reminders/internal/adapters/postgres/db.go | 820 | b53c6fa47c38dce1… |
 | services/reminders/internal/adapters/postgres/digest.go | 2190 | e75a07f7a3757082… |
 | services/reminders/internal/adapters/postgres/inbox.go | 2674 | 5fbeb6fb3f9138f7… |
 | services/reminders/internal/adapters/postgres/projections.go | 16172 | 2e2f9dec7962e07b… |
-| services/reminders/internal/adapters/postgres/reminders.go | 13099 | 8a3a28ad243824d2… |
-| services/reminders/internal/app/digest.go | 3808 | ce3f2537b37dddac… |
+| services/reminders/internal/adapters/postgres/reminders.go | 16190 | d008ee4cb83773fe… |
+| services/reminders/internal/app/digest.go | 4531 | 06862ef1ea150900… |
+| services/reminders/internal/app/digest_test.go | 5831 | 3f2e98a4d5484303… |
 | services/reminders/internal/app/events.go | 6555 | 146fd230a758780b… |
 | services/reminders/internal/app/ingest.go | 8612 | ad3b36363c35795f… |
 | services/reminders/internal/app/metrics.go | 1901 | 068de89835b08b2b… |
 | services/reminders/internal/app/query.go | 3949 | fecb3b40f4d2af07… |
 | services/reminders/internal/app/replan.go | 3563 | 118520c7746f976e… |
 | services/reminders/internal/app/retention.go | 2419 | a93f22455fe87111… |
-| services/reminders/internal/app/scheduler.go | 8414 | 26bc5cdbadefeb5d… |
+| services/reminders/internal/app/scheduler.go | 8497 | 403ba1a42912ebd9… |
+| services/reminders/internal/app/snooze.go | 5598 | 1148cf6969d57e7a… |
 | services/reminders/internal/archtest/arch_test.go | 5106 | a94b14343fadcea6… |
 | services/reminders/internal/config/config.go | 3911 | b16ea47c1a782813… |
 | services/reminders/internal/config/config_test.go | 967 | 29acb077d6463a70… |
@@ -497,28 +510,32 @@
 | services/reminders/internal/domain/digest_test.go | 640 | 7c28e8d920922256… |
 | services/reminders/internal/domain/domain_test.go | 7469 | 358bc464bc3f338c… |
 | services/reminders/internal/domain/errors.go | 1434 | 29589f3c38a32f1c… |
-| services/reminders/internal/domain/plan.go | 3473 | e7d5fd13307d4082… |
+| services/reminders/internal/domain/plan.go | 3731 | 620e61d6421ca6db… |
 | services/reminders/internal/domain/plan_test.go | 6444 | 627e0bd90d0aa80d… |
 | services/reminders/internal/domain/projection.go | 5815 | e1f8e6436d23b226… |
 | services/reminders/internal/domain/recipients.go | 562 | 61ded89379745319… |
 | services/reminders/internal/domain/recipients_test.go | 756 | 85f94714d838faa4… |
-| services/reminders/internal/domain/reminder.go | 3056 | 7e8abbaa000ac2b7… |
+| services/reminders/internal/domain/reminder.go | 3541 | 3e9d9a819a577669… |
+| services/reminders/internal/domain/snooze.go | 2988 | 0358c3ca4d4bb5a4… |
 | services/reminders/internal/domain/text.go | 2606 | 07d0b40f13102b8f… |
 | services/reminders/internal/domain/uuid.go | 323 | ca2622e073f874c3… |
 | services/reminders/internal/ports/gateway_error.go | 748 | 271328c762f1e7e7… |
-| services/reminders/internal/ports/ports.go | 8468 | ba7cc30925c58250… |
+| services/reminders/internal/ports/ports.go | 9049 | 8b3fcc713be0c87a… |
 | services/reminders/migrations/00001_init.sql | 6938 | 8f6f540d3d9860a5… |
 | services/reminders/migrations/00002_responsible_digest.sql | 329 | 66876e2e85a7ce29… |
+| services/reminders/migrations/00003_snooze.sql | 1584 | 0c94f96b614a00d7… |
 | services/reminders/migrations/embed.go | 312 | 6a5164a72904936d… |
 | services/reminders/test/botdouble/main.go | 7083 | 4319733b215b95c4… |
+| services/reminders/test/integration/digest_test.go | 2096 | d0d19f0c4b7592bb… |
 | services/reminders/test/integration/fixtures_test.go | 5426 | a2f9a9ee4445c942… |
 | services/reminders/test/integration/grpc_test.go | 12674 | c7a5c40c04c8fc21… |
 | services/reminders/test/integration/ingest_test.go | 9454 | 42b643d07359a2b1… |
 | services/reminders/test/integration/scheduler_test.go | 10844 | 7fca3cd69e8d3aad… |
 | services/reminders/test/integration/security_test.go | 7884 | 6d3f878067242e60… |
+| services/reminders/test/integration/snooze_test.go | 10038 | 9adf0f2393f874a9… |
 | services/reminders/test/smoke/main.go | 6209 | 89d6877ffceaab5d… |
 | services/reminders/test/testutil/testutil.go | 8049 | 2d51a7feaa182b68… |
 | test/e2e/core_cases.go | 19077 | 4c6d9a4e1f25d505… |
-| test/e2e/main.go | 21966 | dfe8ca20917d8b83… |
-| test/e2e/run.sh | 11060 | 3a65ab78c887cd44… |
+| test/e2e/main.go | 23561 | 85e3f2ceb61cf4b5… |
+| test/e2e/run.sh | 11118 | ce1e4d61f7c93ea3… |
 | tests/load/k6-core-api.js | 4212 | 5ebdf11c3b945a88… |

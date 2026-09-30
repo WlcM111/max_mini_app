@@ -70,4 +70,4 @@
 
 ## 5. Трассировка и телеметрия клиента
 
-Edge ставит `X-Request-Id`; core создаёт корневой span на запрос и передаёт контекст в bot через gRPC-метаданные (otelgrpc). Экспорт спанов — только при заданном `OTEL_EXPORTER_OTLP_ENDPOINT`. Мини-приложение отправляет `POST /client-events`: `bootstrap_completed` (длительность), `bootstrap_failed` (код), `bridge_error` (метод и код), `api_error_shown` (код ошибки) — это единственный способ узнать о сбоях запуска на устройствах пользователей.
+Edge ставит `X-Request-Id`; core формирует идентификаторы W3C Trace Context (`traceparent`, пакет `internal/platform/tracectx`) и передаёт их в bot и reminders через gRPC-метаданные — trace_id и span_id попадают в логи всех сервисов. Экспорт спанов не выполняется (ADR-030). Мини-приложение отправляет `POST /client-events`: `bootstrap_completed` (длительность), `bootstrap_failed` (код), `bridge_error` (метод и код), `api_error_shown` (код ошибки) — это единственный способ узнать о сбоях запуска на устройствах пользователей.

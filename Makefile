@@ -40,8 +40,11 @@ load:
 	docker compose --profile loadtest run --rm k6 run /scripts/k6-core-api.js
 measure-build:
 	./scripts/measure_build.sh
+# Базовая линия контрактов — первый релиз 4.0.0 (c98282a): gRPC-контракты должны оставаться
+# обратно совместимыми с ним (BUG-012).
+CONTRACTS_BASELINE ?= c98282a82c560eb58f7ef034a888e008a238f5d9
 verify-contracts:
-	buf lint && buf breaking --against ".git#tag=contracts-v1.0.0"
+	buf lint && buf breaking --against ".git#ref=$(CONTRACTS_BASELINE)"
 	git diff --exit-code gen/ frontend/src/api/schema.d.ts
 
 # Демонстрационные данные и токен проверяющего внутри запущенного контейнера.

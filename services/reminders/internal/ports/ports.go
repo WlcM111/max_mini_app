@@ -80,8 +80,13 @@ type AggregateState struct {
 type ReminderRepo interface {
 	// Upsert вставляет или обновляет напоминание плана; не трогает handed_off.
 	Upsert(ctx context.Context, r domain.Reminder) error
-	// CancelOutsideKeys отменяет planned-напоминания документа, отсутствующие в keep.
+	// CancelOutsideKeys отменяет planned-напоминания документа, отсутствующие в keep;
+	// отложенные повторы сохраняются, пока их получатель остаётся в плане текущего периода.
 	CancelOutsideKeys(ctx context.Context, documentID string, keep []domain.PlanKey) (int64, error)
+	// FindByKey возвращает напоминание по ключу плана (обычное или отложенный повтор).
+	FindByKey(ctx context.Context, key domain.PlanKey) (domain.Reminder, error)
+	// InsertSnooze добавляет отложенный повтор; false — повтор этого дня уже есть.
+	InsertSnooze(ctx context.Context, r domain.Reminder) (bool, error)
 	// CancelByDocument отменяет все planned-напоминания документа.
 	CancelByDocument(ctx context.Context, documentID string) (int64, error)
 	// CancelByOrganization отменяет planned-напоминания организации.

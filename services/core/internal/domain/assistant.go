@@ -99,9 +99,9 @@ func assistantYearInRange(year int, now time.Time) bool {
 func SanitizeAssistantDraft(catalog *Catalog, title, number, issuer, validFrom, validUntil, typeCode string,
 	confidence float64, now time.Time) AssistantDraft {
 	draft := AssistantDraft{
-		Title:      clampRunes(title, AssistantMaxTitleLen),
-		Number:     clampRunes(number, AssistantMaxNumberLen),
-		Issuer:     clampRunes(issuer, AssistantMaxIssuerLen),
+		Title:      clampRunes(SingleLine(title), AssistantMaxTitleLen),
+		Number:     clampRunes(SingleLine(number), AssistantMaxNumberLen),
+		Issuer:     clampRunes(SingleLine(issuer), AssistantMaxIssuerLen),
 		ValidFrom:  ParseAssistantDate(validFrom, now),
 		ValidUntil: ParseAssistantDate(validUntil, now),
 		Confidence: clampConfidence(confidence),

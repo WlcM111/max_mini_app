@@ -144,6 +144,10 @@ func (a *App) CreateDocuments(ctx context.Context, actor Actor, orgPublicID stri
 	if len(items) == 0 || len(items) > domain.MaxDocumentsPerBatch {
 		return nil, domain.ValidationFor("items", domain.CodeOutOfRange, "ожидается от 1 до 30 документов")
 	}
+	// Переводы строк заметок из форм и таблиц приводятся к \n до проверки и сохранения.
+	for i := range items {
+		items[i].Notes = domain.NormalizeMultiline(items[i].Notes)
+	}
 	catalog := a.CatalogSnapshot()
 	v := &domain.Validator{}
 	seen := make(map[string]struct{}, len(items))
@@ -289,7 +293,7 @@ func (a *App) UpdateDocument(ctx context.Context, actor Actor, docPublicID strin
 			}
 		}
 		if in.SetNotes {
-			next.Notes = in.Notes
+			next.Notes = domain.NormalizeMultiline(in.Notes)
 		}
 		if in.SetReference {
 			next.ReferenceURL = in.ReferenceURL

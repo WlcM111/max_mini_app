@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
@@ -33,6 +34,7 @@ import (
 	"vovremya/services/bot/internal/adapters/maxapi"
 	"vovremya/services/bot/internal/adapters/postgres"
 	"vovremya/services/bot/internal/adapters/ratelimit"
+	"vovremya/services/bot/internal/adapters/remindersgrpc"
 	"vovremya/services/bot/internal/adapters/webhook"
 	"vovremya/services/bot/internal/app"
 	"vovremya/services/bot/internal/config"
@@ -183,6 +185,15 @@ func serve(cfg config.Config, log *slog.Logger) error {
 	monitor.Interval = cfg.QueueDepthRefreshPeriod
 	webhookService := app.NewWebhookService(pool, inboundRepo, recipientRepo, messageRepo, profiles, sysClock, log, appMetrics)
 	webhookService.UseCallbackAnswers(maxClient) // «Напомнить через неделю»
+	// Отложенный повтор ведёт reminders-service (ADR-036); соединение устанавливается лениво.
+	remindersConn, err := grpc.NewClient(cfg.RemindersGRPCAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(grpckit.UnaryClientInterceptor(m)))
+	if err != nil {
+		return fmt.Errorf("reminders grpc client: %w", err)
+	}
+	defer func() { _ = remindersConn.Close() }()
+	webhookService.UseSnoozer(remindersgrpc.NewClient(remindersConn, cfg.RemindersRPCTimeout))
 	profileLoader := app.NewProfileLoader(maxClient, profiles, log)
 	profileLoader.RetryInterval = cfg.ProfileRetryInterval
 	retention := app.NewRetentionJob(inboundRepo, messageRepo, recipientRepo, sysClock, app.RetentionConfig{

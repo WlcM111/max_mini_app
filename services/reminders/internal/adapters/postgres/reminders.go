@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	"vovremya/internal/platform/pgkit"
 	"vovremya/services/reminders/internal/domain"
 	"vovremya/services/reminders/internal/ports"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // ReminderRepo хранит план напоминаний сервиса.
@@ -24,7 +27,7 @@ INSERT INTO reminders.reminders AS r (
     document_id, organization_id, period_id, account_id, days_before,
     due_at, status, attempts, next_attempt_at, created_at, updated_at)
 VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6, 'planned', 0, $6, now(), now())
-ON CONFLICT (period_id, account_id, days_before) DO UPDATE
+ON CONFLICT (period_id, account_id, days_before) WHERE kind = 'offset' DO UPDATE
 SET document_id = excluded.document_id,
     organization_id = excluded.organization_id,
     due_at = excluded.due_at,
@@ -58,16 +61,29 @@ func (r *ReminderRepo) CancelOutsideKeys(ctx context.Context, documentID string,
 	started := time.Now()
 	defer r.observe("reminder_cancel_outside", started)
 	keys := make([]string, 0, len(keep))
+	recipients := make([]string, 0, len(keep))
+	seen := make(map[string]bool, len(keep))
 	for _, k := range keep {
 		keys = append(keys, fmt.Sprintf("%s:%s:%d", k.PeriodID, k.AccountID, k.DaysBefore))
+		pair := k.PeriodID + ":" + k.AccountID
+		if !seen[pair] {
+			seen[pair] = true
+			recipients = append(recipients, pair)
+		}
 	}
+	// Отложенный повтор сохраняется, пока получатель остаётся в плане текущего периода:
+	// правка названия его не отменяет, а продление, исключение из плана или отключение
+	// уведомлений — отменяют (ADR-036).
 	tag, err := r.db(ctx).Exec(ctx, `
 UPDATE reminders.reminders r
 SET status = 'cancelled', updated_at = now()
 WHERE r.document_id = $1::uuid
   AND r.status = 'planned'
-  AND (r.period_id::text || ':' || r.account_id::text || ':' || r.days_before::text) <> ALL($2::text[])`,
-		documentID, keys)
+  AND CASE WHEN r.kind = 'snooze'
+           THEN (r.period_id::text || ':' || r.account_id::text) <> ALL($3::text[])
+           ELSE (r.period_id::text || ':' || r.account_id::text || ':' || r.days_before::text) <> ALL($2::text[])
+      END`,
+		documentID, keys, recipients)
 	if err != nil {
 		return 0, fmt.Errorf("cancel obsolete reminders: %w", err)
 	}
@@ -118,7 +134,7 @@ FROM (
 ) s
 WHERE r.id = s.id
 RETURNING r.id, r.document_id::text, r.organization_id::text, r.period_id::text,
-          r.account_id::text, r.days_before, r.due_at, r.status, r.attempts,
+          r.account_id::text, r.days_before, coalesce(r.snooze_day, 0), r.due_at, r.status, r.attempts,
           r.next_attempt_at, coalesce(r.last_error_code, '')`
 
 // ClaimDue захватывает пакет готовых напоминаний и продлевает аренду.
@@ -153,14 +169,16 @@ func scanReminder(row scanner) (domain.Reminder, error) {
 	var (
 		rem    domain.Reminder
 		days   int16
+		snooze int32
 		status string
 		att    int16
 	)
 	if err := row.Scan(&rem.ID, &rem.DocumentID, &rem.OrganizationID, &rem.Key.PeriodID,
-		&rem.Key.AccountID, &days, &rem.DueAt, &status, &att, &rem.NextAttemptAt, &rem.LastErrorCode); err != nil {
+		&rem.Key.AccountID, &days, &snooze, &rem.DueAt, &status, &att, &rem.NextAttemptAt, &rem.LastErrorCode); err != nil {
 		return domain.Reminder{}, fmt.Errorf("scan reminder: %w", err)
 	}
 	rem.Key.DaysBefore = int(days)
+	rem.Key.SnoozeDay = int(snooze)
 	rem.Status = domain.Status(status)
 	rem.Attempts = int(att)
 	return rem, nil
@@ -217,7 +235,7 @@ func (r *ReminderRepo) NextForAccount(ctx context.Context, accountID string, doc
 	rows, err := r.db(ctx).Query(ctx, `
 SELECT DISTINCT ON (document_id)
        id, document_id::text, organization_id::text, period_id::text, account_id::text,
-       days_before, due_at, status, attempts, next_attempt_at, coalesce(last_error_code, '')
+       days_before, coalesce(snooze_day, 0), due_at, status, attempts, next_attempt_at, coalesce(last_error_code, '')
 FROM reminders.reminders
 WHERE account_id = $1::uuid AND document_id = ANY($2::uuid[]) AND status = 'planned'
 ORDER BY document_id, due_at`, accountID, documentIDs)
@@ -230,14 +248,16 @@ ORDER BY document_id, due_at`, accountID, documentIDs)
 		var (
 			rem    domain.Reminder
 			days   int16
+			snooze int32
 			status string
 			att    int16
 		)
 		if err := rows.Scan(&rem.ID, &rem.DocumentID, &rem.OrganizationID, &rem.Key.PeriodID,
-			&rem.Key.AccountID, &days, &rem.DueAt, &status, &att, &rem.NextAttemptAt, &rem.LastErrorCode); err != nil {
+			&rem.Key.AccountID, &days, &snooze, &rem.DueAt, &status, &att, &rem.NextAttemptAt, &rem.LastErrorCode); err != nil {
 			return nil, fmt.Errorf("scan next reminder: %w", err)
 		}
 		rem.Key.DaysBefore = int(days)
+		rem.Key.SnoozeDay = int(snooze)
 		rem.Status = domain.Status(status)
 		rem.Attempts = int(att)
 		out[rem.DocumentID] = rem
@@ -254,7 +274,7 @@ func (r *ReminderRepo) ListByDocument(ctx context.Context, documentID string) ([
 	defer r.observe("reminder_list_document", started)
 	rows, err := r.db(ctx).Query(ctx, `
 SELECT id, document_id::text, organization_id::text, period_id::text, account_id::text,
-       days_before, due_at, status, attempts, next_attempt_at, coalesce(last_error_code, ''), handed_off_at
+       days_before, coalesce(snooze_day, 0), due_at, status, attempts, next_attempt_at, coalesce(last_error_code, ''), handed_off_at
 FROM reminders.reminders
 WHERE document_id = $1::uuid
 ORDER BY due_at, account_id, days_before DESC`, documentID)
@@ -267,16 +287,18 @@ ORDER BY due_at, account_id, days_before DESC`, documentID)
 		var (
 			rem    domain.Reminder
 			days   int16
+			snooze int32
 			status string
 			att    int16
 			handed *time.Time
 		)
 		if err := rows.Scan(&rem.ID, &rem.DocumentID, &rem.OrganizationID, &rem.Key.PeriodID,
-			&rem.Key.AccountID, &days, &rem.DueAt, &status, &att, &rem.NextAttemptAt,
+			&rem.Key.AccountID, &days, &snooze, &rem.DueAt, &status, &att, &rem.NextAttemptAt,
 			&rem.LastErrorCode, &handed); err != nil {
 			return nil, fmt.Errorf("scan reminder: %w", err)
 		}
 		rem.Key.DaysBefore = int(days)
+		rem.Key.SnoozeDay = int(snooze)
 		rem.Status = domain.Status(status)
 		rem.Attempts = int(att)
 		rem.HandedOffAt = handed
@@ -323,3 +345,41 @@ WHERE status IN ('handed_off', 'cancelled', 'skipped') AND updated_at < $1`, bef
 }
 
 var _ ports.ReminderRepo = (*ReminderRepo)(nil)
+
+// FindByKey возвращает напоминание по ключу плана — обычное или отложенный повтор.
+func (r *ReminderRepo) FindByKey(ctx context.Context, key domain.PlanKey) (domain.Reminder, error) {
+	started := time.Now()
+	defer r.observe("reminder_find_by_key", started)
+	row := r.db(ctx).QueryRow(ctx, `
+SELECT id, document_id::text, organization_id::text, period_id::text, account_id::text,
+       days_before, coalesce(snooze_day, 0), due_at, status, attempts, next_attempt_at, coalesce(last_error_code, '')
+FROM reminders.reminders
+WHERE period_id = $1::uuid AND account_id = $2::uuid
+  AND ((kind = 'offset' AND days_before = $3 AND $4::integer = 0)
+       OR (kind = 'snooze' AND snooze_day = $4::integer))`,
+		key.PeriodID, key.AccountID, int16(key.DaysBefore), int32(key.SnoozeDay))
+	rem, err := scanReminder(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Reminder{}, domain.ErrNotFound
+	}
+	return rem, err
+}
+
+// InsertSnooze добавляет отложенный повтор в план. Возвращает false, если повтор
+// этого дня для получателя и периода уже запланирован.
+func (r *ReminderRepo) InsertSnooze(ctx context.Context, rem domain.Reminder) (bool, error) {
+	started := time.Now()
+	defer r.observe("reminder_insert_snooze", started)
+	tag, err := r.db(ctx).Exec(ctx, `
+INSERT INTO reminders.reminders (
+    document_id, organization_id, period_id, account_id, days_before, kind, snooze_day,
+    due_at, status, attempts, next_attempt_at, created_at, updated_at)
+VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, 'snooze', $6, $7, 'planned', 0, $7, now(), now())
+ON CONFLICT (period_id, account_id, snooze_day) WHERE kind = 'snooze' DO NOTHING`,
+		rem.DocumentID, rem.OrganizationID, rem.Key.PeriodID, rem.Key.AccountID,
+		int16(rem.Key.DaysBefore), int32(rem.Key.SnoozeDay), rem.DueAt.UTC())
+	if err != nil {
+		return false, fmt.Errorf("insert snooze: %w", err)
+	}
+	return tag.RowsAffected() == 1, nil
+}

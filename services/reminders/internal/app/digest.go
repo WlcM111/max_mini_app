@@ -56,20 +56,18 @@ func (d *DigestRunner) RunOnce(ctx context.Context) {
 		if err != nil {
 			loc = time.UTC
 		}
-		local := now.In(loc)
-		if local.Weekday() != time.Monday {
+		// Окно считается от понедельника текущей недели, а не от дня недели «сейчас»:
+		// при времени напоминаний после 21:00 окно переходит через полночь во вторник (BUG-019).
+		start := digestStart(now.In(loc), r.NotifyLocalMinutes, loc)
+		if now.Before(start) || now.After(start.Add(digestWindow)) {
 			continue
 		}
-		start := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, loc).Add(time.Duration(r.NotifyLocalMinutes) * time.Minute)
-		if local.Before(start) || local.After(start.Add(digestWindow)) {
-			continue
-		}
-		year, week := local.ISOWeek()
+		year, week := start.ISOWeek()
 		key := fmt.Sprintf("digest:%s:%s:%d%02d", r.OrganizationID, r.AccountID, year, week)
 		if d.sent[key] {
 			continue
 		}
-		today := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC)
+		today := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
 		docs, err := d.repo.ListDigestDocuments(ctx, r.OrganizationID, today.AddDate(0, 0, 7))
 		if err != nil {
 			d.log.Warn("digest: documents", slog.Any("error", err))
@@ -105,4 +103,12 @@ func (d *DigestRunner) RunOnce(ctx context.Context) {
 	if len(d.sent) > 10000 {
 		d.sent = map[string]bool{}
 	}
+}
+
+// digestStart возвращает начало окна сводки для недели, в которую попадает момент local:
+// понедельник этой недели в поясе организации во время напоминаний участника.
+func digestStart(local time.Time, notifyMinutes int, loc *time.Location) time.Time {
+	sinceMonday := (int(local.Weekday()) + 6) % 7
+	monday := time.Date(local.Year(), local.Month(), local.Day()-sinceMonday, 0, 0, 0, 0, loc)
+	return monday.Add(time.Duration(notifyMinutes) * time.Minute)
 }

@@ -60,8 +60,16 @@ type Reminder struct {
 
 // IdempotencyKey возвращает ключ идемпотентности передачи в bot-service.
 // Формат зафиксирован исходным ТЗ: rem:<period_uuid>:<account_uuid>:<days>.
+//
+// Отложенный повтор получает суффикс :snz:<день>; <дни> в нём — сколько дней останется
+// до окончания срока в момент повтора. Такой формат уже разбирает bot-service при
+// добавлении кнопки «Напомнить через неделю».
 func (k PlanKey) IdempotencyKey() string {
-	return fmt.Sprintf("rem:%s:%s:%d", k.PeriodID, k.AccountID, k.DaysBefore)
+	base := fmt.Sprintf("rem:%s:%s:%d", k.PeriodID, k.AccountID, k.DaysBefore)
+	if k.SnoozeDay > 0 {
+		return fmt.Sprintf("%s%s%d", base, snoozeKeyMarker, k.SnoozeDay)
+	}
+	return base
 }
 
 // Expired сообщает, что момент напоминания просрочен более чем на grace

@@ -118,3 +118,24 @@ type RateLimiter interface {
 	// Penalize снижает глобальную скорость после ответа 429.
 	Penalize()
 }
+
+// SnoozeOutcome — исход запроса отложить напоминание в reminders-service (ADR-036).
+type SnoozeOutcome int
+
+// Исходы запроса отложить напоминание.
+const (
+	SnoozeUnknown SnoozeOutcome = iota
+	SnoozeSnoozed
+	SnoozeAlreadySnoozed
+	SnoozeTooLate
+	SnoozeStale
+	SnoozeNotFound
+	SnoozeForbidden
+)
+
+// ReminderCommands — команды reminders-service над напоминаниями. Отложенный повтор
+// ведёт reminders-service: так его отменяют продление и удаление документа, исключение
+// участника и удаление аккаунта (ADR-036).
+type ReminderCommands interface {
+	SnoozeReminder(ctx context.Context, idempotencyKey string, recipientMaxUserID int64) (SnoozeOutcome, time.Time, error)
+}

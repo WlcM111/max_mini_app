@@ -41,6 +41,7 @@ type WebhookService struct {
 	log        *slog.Logger
 	metrics    *Metrics
 	answerer   callbackAnswerer
+	snoozer    ports.ReminderCommands
 }
 
 // NewWebhookService создаёт обработчик событий.

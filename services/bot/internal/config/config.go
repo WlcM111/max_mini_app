@@ -34,6 +34,9 @@ type Config struct {
 	MaxToken          string        `env:"BOT_MAX_TOKEN"`
 	MaxExtraCAFile    string        `env:"BOT_MAX_EXTRA_CA_FILE" envDefault:"/etc/vovremya/ca/russian_trusted_ca_bundle.pem"`
 	MaxRequestTimeout time.Duration `env:"BOT_MAX_REQUEST_TIMEOUT" envDefault:"10s"`
+	// reminders-service: отложенный повтор напоминания по кнопке (ADR-036).
+	RemindersGRPCAddr   string        `env:"BOT_REMINDERS_GRPC_ADDR" envDefault:"reminders:9091"`
+	RemindersRPCTimeout time.Duration `env:"BOT_REMINDERS_RPC_TIMEOUT" envDefault:"5s"`
 
 	WebhookPublicURL        string        `env:"BOT_WEBHOOK_PUBLIC_URL"`
 	WebhookSecret           string        `env:"BOT_WEBHOOK_SECRET"`
@@ -144,6 +147,12 @@ func (c Config) validate(command string) error {
 		if c.MaxExtraCAFile == "" {
 			return fmt.Errorf("BOT_MAX_EXTRA_CA_FILE: обязателен в режиме live (F-40)")
 		}
+	}
+	if strings.TrimSpace(c.RemindersGRPCAddr) == "" {
+		return fmt.Errorf("BOT_REMINDERS_GRPC_ADDR: обязателен адрес reminders-service")
+	}
+	if c.RemindersRPCTimeout <= 0 || c.RemindersRPCTimeout > 30*time.Second {
+		return fmt.Errorf("BOT_REMINDERS_RPC_TIMEOUT: ожидается от 1мс до 30с")
 	}
 	if c.AppEnv == "prod" && !strings.HasPrefix(c.MaxAPIBaseURL, "https://") {
 		return fmt.Errorf("BOT_MAX_API_BASE_URL: в prod допустим только https://")

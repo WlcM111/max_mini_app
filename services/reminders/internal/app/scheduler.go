@@ -153,10 +153,14 @@ func (s *Scheduler) process(ctx context.Context, r domain.Reminder) (bool, error
 		return false, mErr
 	}
 
+	text := domain.ReminderText(doc.Title, org.Name, r.Key.DaysBefore, *doc.Period.ValidUntil)
+	if r.Key.SnoozeDay > 0 {
+		text = domain.SnoozeTextPrefix + text
+	}
 	req := ports.NotificationRequest{
 		IdempotencyKey:     r.Key.IdempotencyKey(),
 		RecipientMaxUserID: member.MaxUserID,
-		Text:               domain.ReminderText(doc.Title, org.Name, r.Key.DaysBefore, *doc.Period.ValidUntil),
+		Text:               text,
 		ButtonText:         domain.ButtonOpenDocument,
 		ButtonPayload:      domain.DeepLinkPayload(doc.ID),
 		// «Напомнить через неделю» добавляет bot-service (callback-кнопка).

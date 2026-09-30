@@ -29,11 +29,6 @@ func TokenHash(token string) []byte {
 
 const sessionTokenPrefix = "vvs_"
 
-// CreateSession проверяет данные запуска MAX и выдаёт серверную сессию.
-func (a *App) CreateSession(ctx context.Context, initData, platform, appVersion string) (SessionResult, error) {
-	return a.CreateSessionLimited(ctx, initData, platform, appVersion, nil)
-}
-
 // CreateSessionLimited — CreateSession с ограничением частоты по пользователю MAX:
 // allow вызывается после проверки подписи и до записи сессии.
 func (a *App) CreateSessionLimited(ctx context.Context, initData, platform, appVersion string,

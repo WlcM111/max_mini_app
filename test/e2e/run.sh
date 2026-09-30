@@ -98,6 +98,7 @@ say "[3/10] Применение миграций всех сервисов"
 
 export BOT_MODE=stub
 export BOT_GRPC_ADDR="127.0.0.1:$BOT_GRPC_PORT"
+export BOT_REMINDERS_GRPC_ADDR="127.0.0.1:$REM_GRPC_PORT"
 export BOT_HTTP_ADDR="127.0.0.1:$BOT_HTTP_PORT"
 export BOT_ADMIN_ADDR="127.0.0.1:$BOT_ADMIN_PORT"
 export BOT_WEBHOOK_SECRET="${BOT_WEBHOOK_SECRET:-devonly-webhook-secret}"

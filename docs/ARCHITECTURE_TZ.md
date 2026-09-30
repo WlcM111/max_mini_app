@@ -118,6 +118,7 @@ flowchart LR
 | IngestService | api/proto/vovremya/reminders/v1/ingest.proto | core → reminders | 1.0.0 |
 | ReminderQueryService | api/proto/vovremya/reminders/v1/query.proto | core → reminders | 1.0.0 |
 | MessagingService | api/proto/vovremya/bot/v1/messaging.proto | core → bot, reminders → bot | 1.0.1 (исправлен комментарий) |
+| ReminderCommandService | api/proto/vovremya/reminders/v1/commands.proto | bot → reminders | 1.0.0 (ADR-036, аддитивно) |
 | Публичный HTTP API | openapi.yaml | Mini App → core | 1.1.0 (добавляющие изменения) |
 
 Правила: номера полей не переиспользуются, удалённые поля помечаются reserved,

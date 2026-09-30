@@ -132,7 +132,10 @@ flowchart TB
 | reminders-service | план напоминаний, расписание, повторы, отмена, восстановление, текст напоминания | источник истины по документам, доставка в MAX, публичный API | схема reminders | gRPC IngestService, ReminderQueryService, Health | gRPC → bot (EnqueueNotification) |
 | bot-service | канал MAX: webhook, очередь доставки, состояния получателей, токен бота | правила сроков напоминаний | схема bot | HTTP webhook, gRPC MessagingService | HTTPS → MAX Bot API |
 
-Граф вызовов ациклический: core → reminders, core → bot, reminders → bot.
+Граф вызовов: core → reminders, core → bot, reminders → bot и bot → reminders — только команда
+«Напомнить через неделю» (`ReminderCommandService`, ADR-036). Вызовы reminders → bot (передача
+напоминания) и bot → reminders (нажатие кнопки) независимы и не вложены друг в друга, поэтому
+взаимной блокировки нет; соединения gRPC устанавливаются лениво, порядок запуска сервисов не важен.
 Синхронных обратных вызовов reminders → core нет: рассогласование обнаруживается ответами
 `ApplyEvents` и `GetIngestState`, которые инициирует core.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRows, detectMapping, normalizeTitle, parseDateCell } from './importRows';
+import { buildRows, detectMapping, multiline, normalizeTitle, parseDateCell, singleLine } from './importRows';
 
 describe('T-FE-IMPORT: разбор строк таблицы (FR-24)', () => {
   it('сопоставляет столбцы по заголовкам: «Номер документа» — номер, а не название', () => {
@@ -79,5 +79,29 @@ describe('T-FE-IMPORT: документы, которые уже есть в р�
     expect(first?.duplicate).toBe(true);
     expect(first?.body).not.toBeNull();
     expect(second?.duplicate).toBe(false);
+  });
+});
+
+describe('T-FE-IMPORT: значения ячеек приводятся к допустимому виду', () => {
+  it('однострочные поля — без переводов строк и управляющих символов', () => {
+    expect(singleLine('  Лицензия\nна\t алкоголь\u0000 ')).toBe('Лицензия на алкоголь');
+    expect(singleLine('Договор\r\nаренды')).toBe('Договор аренды');
+  });
+
+  it('заметки сохраняют переводы строк, лишние управляющие символы удаляются', () => {
+    expect(multiline('первая\r\nвторая\rтретья\u0007')).toBe('первая\nвторая\nтретья');
+  });
+
+  it('строка с переводом строки в ячейке названия загружается целиком', () => {
+    const rows = [
+      ['Название', 'Действует до', 'Примечание'],
+      ['Лицензия\nна алкоголь', '31.12.2027', 'строка 1\r\nстрока 2'],
+    ];
+    const { mapping, hasHeader } = detectMapping(rows);
+    const built = buildRows(rows, mapping, hasHeader);
+    expect(built).toHaveLength(1);
+    expect(built[0]?.errors).toEqual([]);
+    expect(built[0]?.body?.title).toBe('Лицензия на алкоголь');
+    expect(built[0]?.body?.notes).toBe('строка 1\nстрока 2');
   });
 });

@@ -11,6 +11,9 @@ type PlanKey struct {
 	PeriodID   string
 	AccountID  string
 	DaysBefore int
+	// SnoozeDay — день нажатия «Напомнить через неделю» (сутки UTC от эпохи);
+	// 0 — обычное напоминание плана, иначе — отложенный повтор (ADR-036).
+	SnoozeDay int
 }
 
 // PlanItem — элемент желаемого плана напоминаний.

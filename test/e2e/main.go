@@ -235,6 +235,34 @@ func (e *env) caseMain(ctx context.Context) {
 		log.Fatalf("e2e: повтор события создал новые сообщения: было %d, стало %d", before, after)
 	}
 	fmt.Printf("   сообщений в канале: %d (без изменений)\n", before)
+
+	step("9. «Напомнить через неделю»: нажатие в чате ставит повтор в план reminders-service")
+	// Путь целиком: webhook bot-service → gRPC ReminderCommandService → строка плана (ADR-036).
+	callback := fmt.Sprintf(`{"update_type":"message_callback","timestamp":%d,`+
+		`"callback":{"callback_id":"e2e-snooze","payload":"snooze:%s","user":{"user_id":%d}}}`,
+		time.Now().UnixMilli(), key, maxUID)
+	if code := e.postWebhook(callback, e.secret); code != http.StatusOK {
+		log.Fatalf("e2e: webhook с нажатием вернул %d", code)
+	}
+	weekAhead := time.Now().Add(6 * 24 * time.Hour)
+	var snoozed *remindersv1.PlannedReminder
+	for limit := time.Now().Add(20 * time.Second); snoozed == nil; time.Sleep(300 * time.Millisecond) {
+		plan, err := e.query.GetDocumentPlan(ctx, &remindersv1.GetDocumentPlanRequest{DocumentId: docFirst})
+		if err != nil {
+			log.Fatalf("e2e: GetDocumentPlan: %v", err)
+		}
+		for _, it := range plan.GetItems() {
+			if it.GetStatus() == remindersv1.ReminderStatus_REMINDER_STATUS_PLANNED && it.GetDueAt().AsTime().After(weekAhead) &&
+				it.GetDueAt().AsTime().Before(time.Now().Add(8*24*time.Hour)) {
+				snoozed = it
+			}
+		}
+		if snoozed == nil && time.Now().After(limit) {
+			log.Fatalf("e2e: повтор не появился в плане документа: %s", dump(plan.GetItems()))
+		}
+	}
+	fmt.Printf("   повтор запланирован на %s, до срока останется %d дн.\n",
+		snoozed.GetDueAt().AsTime().Format(time.RFC3339), snoozed.GetDaysBefore())
 	fmt.Println("\nСценарий main пройден.")
 }
 

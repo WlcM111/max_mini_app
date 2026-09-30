@@ -1,9 +1,7 @@
 package domain
 
 import (
-	"strings"
 	"testing"
-	"time"
 )
 
 func TestSnooze(t *testing.T) {
@@ -16,13 +14,10 @@ func TestSnooze(t *testing.T) {
 	if len(n.Buttons) != 1 {
 		t.Fatal("исходные кнопки изменены")
 	}
-	now := time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC)
-	c := n.SnoozedCopy(now)
-	if !c.NextAttemptAt.Equal(now.Add(SnoozeDelay)) || !strings.HasPrefix(c.Text, "Напоминаю ещё раз.") {
-		t.Fatalf("копия: %+v", c)
-	}
-	if again := c.SnoozedCopy(now.Add(8 * 24 * time.Hour)); strings.Count(again.IdempotencyKey, ":snz:") != 1 {
-		t.Fatalf("ключ растёт: %s", again.IdempotencyKey)
+	// Повтор из плана reminders-service снова можно отложить: кнопка несёт его полный ключ.
+	snoozed := Notification{IdempotencyKey: "rem:p:a:23:snz:20000", Message: Message{Kind: KindReminder}}
+	if b := snoozed.WithSnoozeButton().Buttons; len(b) != 1 || b[0].Payload != SnoozePayloadPrefix+"rem:p:a:23:snz:20000" {
+		t.Fatalf("кнопка повтора: %+v", b)
 	}
 	if d := (Notification{IdempotencyKey: "digest:o:a:202640", Message: Message{Kind: KindReminder}}).WithSnoozeButton(); len(d.Buttons) != 0 {
 		t.Fatal("сводке кнопка не нужна")
@@ -48,39 +43,5 @@ func TestSnoozeButtonNeedsMoreThanWeek(t *testing.T) {
 		if got := len(n.WithSnoozeButton().Buttons); got != tc.want {
 			t.Errorf("%s: кнопок %d, ожидалось %d", tc.key, got, tc.want)
 		}
-	}
-}
-
-func TestSnoozedCopyText(t *testing.T) {
-	now := time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC)
-	n := Notification{IdempotencyKey: "rem:p:a:30", Message: Message{Kind: KindReminder,
-		Text: "Через 30 дней заканчивается срок: «Лицензия». Организация: Кафе. Срок до 28.10.2026."}}
-	want := "Напоминаю ещё раз. Заканчивается срок: «Лицензия». Организация: Кафе. Срок до 28.10.2026."
-	c := n.SnoozedCopy(now)
-	if c.Text != want {
-		t.Fatalf("текст копии: %q", c.Text)
-	}
-	if again := c.SnoozedCopy(now.Add(SnoozeDelay)); again.Text != want {
-		t.Fatalf("текст второй копии: %q", again.Text)
-	}
-	if !c.CreatedAt.Equal(now) {
-		t.Fatalf("время создания копии: %v", c.CreatedAt)
-	}
-}
-
-func TestSnoozeAllowed(t *testing.T) {
-	now := time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC)
-	until := func(date string) Notification {
-		return Notification{Message: Message{Kind: KindReminder,
-			Text: "Через 30 дней заканчивается срок: «Лицензия». Организация: Кафе. Срок до " + date + "."}}
-	}
-	if !until("28.10.2026").SnoozeAllowed(now) || !until("07.10.2026").SnoozeAllowed(now) {
-		t.Error("копия успевает до дня окончания срока — перенос разрешён")
-	}
-	if until("06.10.2026").SnoozeAllowed(now) || until("01.10.2026").SnoozeAllowed(now) {
-		t.Error("копия пришла бы в день окончания срока или позже — перенос запрещён")
-	}
-	if !(Notification{Message: Message{Text: "Через 30 дней…"}}).SnoozeAllowed(now) {
-		t.Error("текст без даты перенос не ограничивает")
 	}
 }

@@ -126,11 +126,11 @@ export function buildRows(
     if (until.kind === 'invalid') errors.push(`Дата окончания «${until.raw}» не распознана`);
     const form: DocumentFormState = {
       ...emptyDocumentForm(offsets),
-      title: get('title'),
-      number: get('number'),
-      issuer: get('issuer'),
-      responsibleLabel: get('responsible'),
-      notes: get('notes'),
+      title: singleLine(get('title')),
+      number: singleLine(get('number')),
+      issuer: singleLine(get('issuer')),
+      responsibleLabel: singleLine(get('responsible')),
+      notes: multiline(get('notes')),
       validFrom: from.kind === 'date' ? from.value : null,
       validUntil: until.kind === 'date' ? until.value : null,
       indefinite: until.kind === 'indefinite',
@@ -151,4 +151,23 @@ export function buildRows(
       duplicate: form.title !== '' && existing.has(normalizeTitle(form.title)),
     };
   });
+}
+
+// Ячейки таблиц нередко содержат переводы строк и невидимые управляющие символы. Сервер
+// отклоняет управляющие символы в текстовых полях, а пакет импорта сохраняется целиком
+// или никак — поэтому значения приводятся к допустимому виду до отправки.
+
+/** Однострочное поле: переводы строк, табуляции и управляющие символы заменяются пробелом. */
+export function singleLine(value: string): string {
+  // eslint-disable-next-line no-control-regex
+  return value.replace(/[\s\u0000-\u001f\u007f-\u009f]+/g, ' ').trim();
+}
+
+/** Многострочное поле: переводы строк приводятся к \n, прочие управляющие символы удаляются. */
+export function multiline(value: string): string {
+  return value
+    .replace(/\r\n?/g, '\n')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, '')
+    .trim();
 }

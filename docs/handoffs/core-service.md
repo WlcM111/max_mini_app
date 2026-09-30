@@ -206,7 +206,7 @@ READ COMMITTED; блокировка строки организации в ка
 
 ## 16. Конфигурация
 
-Переменные `CORE_*`, `APP_ENV`, `LOG_LEVEL`, `OTEL_EXPORTER_OTLP_ENDPOINT` — `docs/operations/configuration.md`. Загрузка — `caarlos0/env` в `config.Config`; секреты поддерживают `_FILE`; при `APP_ENV=prod` секрет с префиксом `devonly` или dev-ключ `e45f53166d1da778700f29abbf89f6ac247864cb97356f927707e56f0066d663` → выход с кодом 1 и сообщением `insecure default secret`.
+Переменные `CORE_*`, `APP_ENV`, `LOG_LEVEL` — `docs/operations/configuration.md`. Загрузка — `caarlos0/env` в `config.Config`; секреты поддерживают `_FILE`; при `APP_ENV=prod` секрет с префиксом `devonly` или dev-ключ `e45f53166d1da778700f29abbf89f6ac247864cb97356f927707e56f0066d663` → выход с кодом 1 и сообщением `insecure default secret`.
 
 ## 17. Логи, метрики, health
 

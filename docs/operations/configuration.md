@@ -9,7 +9,6 @@
 | `APP_ENV` | core, bot | `local` | `prod` | нет | режим; `prod` включает проверку секретов |
 | `APP_VERSION` | сборка всех образов | `dev` | тег релиза `1.0.0` | нет | версия в логах и тег образов |
 | `LOG_LEVEL` | core, bot | `info` | `info` | нет | `debug`, `info`, `warn`, `error` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | core, bot | пусто | пусто | нет | адрес OTLP; пусто — экспорт выключен |
 
 ## PostgreSQL (контейнер `postgres`)
 
@@ -49,6 +48,15 @@
 | `CORE_EXPORT_TTL` | `10m` | нет | срок ссылки ICS |
 | `CORE_RETENTION_INTERVAL` | `1h` | нет | период очистки |
 | `CORE_SHUTDOWN_TIMEOUT` | `25s` | нет | общий срок остановки |
+| `CORE_RELAY_INTERVAL` | `2s` | нет | период доставки событий outbox в reminders-service |
+| `CORE_RELAY_CONCURRENCY` | `4` | нет | одновременные доставки outbox (1…4) |
+| `CORE_OUTBOX_BATCH` | `100` | нет | событий outbox за один проход |
+| `CORE_OUTBOX_LEASE` | `60s` | нет | аренда захваченного события outbox |
+| `CORE_OUTBOX_RETENTION` | `168h` | нет | срок хранения доставленных событий outbox |
+| `CORE_SESSION_RETENTION` | `720h` | нет | срок хранения истёкших и отозванных сессий |
+| `CORE_AUDIT_RETENTION` | `4320h` | нет | срок хранения журнала аудита |
+| `CORE_RATE_INVITE_PER_MIN` | `10` | нет | приглашений в минуту на аккаунт |
+| `CORE_RATE_CLIENT_EVENTS_PER_MIN` | `60` | нет | технических событий мини-приложения в минуту |
 | `CORE_GIGACHAT_AUTH_KEY` | пусто | **да, секрет** | ключ авторизации GigaChat API: Base64(Client ID:Client Secret). Пусто — ассистент выключен (ADR-032). Поддерживается `CORE_GIGACHAT_AUTH_KEY_FILE` |
 | `CORE_GIGACHAT_SCOPE` | `GIGACHAT_API_PERS` | нет | область доступа: PERS, B2B или CORP |
 | `CORE_GIGACHAT_MODEL` | `GigaChat-Pro` | нет | модель генерации |
@@ -72,6 +80,8 @@
 | `BOT_MAX_TOKEN` | обязательна при `live` | да | токен бота (compose берёт из `MAX_BOT_TOKEN`) |
 | `BOT_MAX_EXTRA_CA_FILE` | `/etc/vovremya/ca/russian_trusted_ca_bundle.pem` | нет | сертификаты Минцифры |
 | `BOT_MAX_REQUEST_TIMEOUT` | `10s` | нет | таймаут вызова MAX |
+| `BOT_REMINDERS_GRPC_ADDR` | `reminders:9091` | нет | адрес reminders-service: нажатие «Напомнить через неделю» ставит повтор в его план (ADR-036) |
+| `BOT_REMINDERS_RPC_TIMEOUT` | `5s` | нет | срок вызова reminders-service при нажатии кнопки |
 | `BOT_WEBHOOK_PUBLIC_URL` | обязательна при `live` | нет | `https://<домен>/max/webhook` |
 | `BOT_WEBHOOK_SECRET` | обязательна | да | 5–256 символов `[A-Za-z0-9_-]`, в prod — 64 |
 | `BOT_WEBHOOK_UPDATE_TYPES` | `bot_started,bot_stopped,dialog_removed,dialog_muted,dialog_unmuted,message_created,message_callback` | нет | подписка; `message_callback` нужен кнопке «Напомнить через неделю» (ADR-036) |

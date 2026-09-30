@@ -175,6 +175,8 @@ func serve(cfg config.Config, log *slog.Logger) error {
 	)
 	remindersv1.RegisterIngestServiceServer(grpcSrv, grpcserver.NewIngestServer(ingestService, log, cfg.MaxBatchEvents))
 	remindersv1.RegisterReminderQueryServiceServer(grpcSrv, grpcserver.NewQueryServer(queryService, log))
+	snoozeService := app.NewSnoozeService(pool, projRepo, reminderRepo, sysClock, log)
+	remindersv1.RegisterReminderCommandServiceServer(grpcSrv, grpcserver.NewCommandServer(snoozeService, log))
 	healthSrv := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcSrv, healthSrv)
 	healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)

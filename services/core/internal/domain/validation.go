@@ -23,6 +23,8 @@ func ValidateOrganization(in OrganizationInput, catalog *Catalog, v *Validator) 
 		v.Add("name", CodeRequired, "название обязательно")
 	case utf8.RuneCountInString(name) > 100:
 		v.Add("name", CodeTooLong, "не более 100 символов")
+	case HasControlChars(name, false):
+		v.Add("name", CodeInvalidFormat, "недопустимые управляющие символы")
 	}
 	if !catalog.HasCategory(in.BusinessCategoryCode) {
 		v.Add("business_category_code", CodeUnknownValue, "вид деятельности не найден в справочнике")
@@ -75,18 +77,24 @@ func ValidateDocument(in DocumentInput, catalog *Catalog, v *Validator) {
 		v.Add("title", CodeRequired, "название обязательно")
 	case utf8.RuneCountInString(title) > 200:
 		v.Add("title", CodeTooLong, "не более 200 символов")
+	case HasControlChars(title, false):
+		v.Add("title", CodeInvalidFormat, "недопустимые управляющие символы")
 	}
-	checkLen := func(field, value string, max int) {
-		if utf8.RuneCountInString(value) > max {
+	checkText := func(field, value string, max int, multiline bool) {
+		switch {
+		case utf8.RuneCountInString(value) > max:
 			v.Add(field, CodeTooLong, "превышена допустимая длина")
+		case HasControlChars(value, multiline):
+			v.Add(field, CodeInvalidFormat, "недопустимые управляющие символы")
 		}
 	}
-	checkLen("number", in.Number, 100)
-	checkLen("issuer", in.Issuer, 200)
-	checkLen("responsible_label", in.ResponsibleLabel, 100)
-	checkLen("notes", in.Notes, 2000)
+	checkText("number", in.Number, 100, false)
+	checkText("issuer", in.Issuer, 200, false)
+	checkText("responsible_label", in.ResponsibleLabel, 100, false)
+	checkText("notes", in.Notes, 2000, true)
 	if in.ReferenceURL != "" {
 		if !strings.HasPrefix(in.ReferenceURL, "https://") || strings.ContainsAny(in.ReferenceURL, " \t\n") ||
+			HasControlChars(in.ReferenceURL, false) ||
 			utf8.RuneCountInString(in.ReferenceURL) > 1024 {
 			v.Add("reference_url", CodeInvalidFormat, "ожидается ссылка https:// длиной до 1024 символов")
 		}

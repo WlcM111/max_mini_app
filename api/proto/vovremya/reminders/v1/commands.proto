@@ -1,0 +1,49 @@
+// Команды пользователя над напоминаниями. Вызывает bot-service, когда пользователь
+// нажимает кнопку под напоминанием в чате MAX (ADR-036).
+syntax = "proto3";
+
+package vovremya.reminders.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "vovremya/gen/go/vovremya/reminders/v1;remindersv1";
+
+// ReminderCommandService — действия пользователя над своими напоминаниями.
+service ReminderCommandService {
+  // SnoozeReminder откладывает напоминание на неделю (кнопка «Напомнить через неделю»).
+  // Повтор становится строкой плана reminders-service и отменяется так же, как любое
+  // запланированное напоминание: при продлении или удалении документа, исключении
+  // участника, удалении аккаунта или организации и отключении уведомлений.
+  rpc SnoozeReminder(SnoozeReminderRequest) returns (SnoozeReminderResponse);
+}
+
+message SnoozeReminderRequest {
+  // Ключ идемпотентности сообщения, под которым нажата кнопка:
+  // rem:<период>:<аккаунт>:<дни>[:snz:<день>].
+  string idempotency_key = 1;
+  // Пользователь MAX, нажавший кнопку. Должен совпадать с получателем напоминания.
+  int64 recipient_max_user_id = 2;
+}
+
+// SnoozeOutcome — исход запроса отложить напоминание.
+enum SnoozeOutcome {
+  SNOOZE_OUTCOME_UNSPECIFIED = 0;
+  // Повтор запланирован.
+  SNOOZE_OUTCOME_SNOOZED = 1;
+  // Повтор на эту неделю уже запланирован ранее.
+  SNOOZE_OUTCOME_ALREADY_SNOOZED = 2;
+  // До окончания срока меньше недели: повтор пришёл бы в день окончания или позже.
+  SNOOZE_OUTCOME_TOO_LATE = 3;
+  // Напоминание устарело: документ продлён или удалён, получатель больше не получает напоминания.
+  SNOOZE_OUTCOME_STALE = 4;
+  // Напоминание с таким ключом не найдено.
+  SNOOZE_OUTCOME_NOT_FOUND = 5;
+  // Кнопку нажал не получатель напоминания.
+  SNOOZE_OUTCOME_FORBIDDEN = 6;
+}
+
+message SnoozeReminderResponse {
+  SnoozeOutcome outcome = 1;
+  // Момент повтора — для SNOOZED и ALREADY_SNOOZED.
+  google.protobuf.Timestamp due_at = 2;
+}
